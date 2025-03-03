@@ -1,1 +1,1 @@
-node main.ts
+node CLI/main.ts

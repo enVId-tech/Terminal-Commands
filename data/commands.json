@@ -11,7 +11,8 @@
           "default": "latest",
           "validate": "input => input || 'Version is required'"
         }
-      ]
+      ],
+      "subcommands": []
     },
     {
       "name": "Deploy",
