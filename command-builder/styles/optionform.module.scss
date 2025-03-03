@@ -1,0 +1,111 @@
+// styles/OptionForm.module.scss
+.optionForm {
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.column {
+  flex: 1;
+}
+
+.formGroup {
+  margin-bottom: 12px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.select {
+  composes: input;
+}
+
+.textarea {
+  composes: input;
+  font-family: monospace;
+  min-height: 60px;
+}
+
+.helperText {
+  font-size: 12px;
+  color: #718096;
+}
+
+.choiceContainer {
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.choiceInput {
+  composes: input;
+  margin-bottom: 0;
+}
+
+.removeButton {
+  margin-left: 8px;
+  background: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 32px;
+  cursor: pointer;
+
+  &:hover {
+    background: #c53030;
+  }
+}
+
+.addButton {
+  background: #3182ce;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+
+  &:hover {
+    background: #2b6cb0;
+  }
+}
+
+.confirmContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox {
+  margin-right: 8px;
+}
+
+.dangerButton {
+  background: #e53e3e;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+
+  &:hover {
+    background: #c53030;
+  }
+}

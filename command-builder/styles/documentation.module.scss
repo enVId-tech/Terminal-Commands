@@ -1,0 +1,28 @@
+// styles/documentation.module.scss
+.container {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+
+  h1, h2, h3 {
+    color: #2d3748;
+  }
+
+  p, ul, pre {
+    color: #4a5568;
+  }
+
+  pre {
+    background-color: #f7fafc;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+  }
+
+  code {
+    background-color: #edf2f7;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+  }
+}

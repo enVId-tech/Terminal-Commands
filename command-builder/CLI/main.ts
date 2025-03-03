@@ -1,7 +1,7 @@
 import inquirer from 'inquirer';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import  * as fs from 'fs';
+import * as fs from 'fs';
 import * as path from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -16,7 +16,7 @@ const __dirname = dirname(__filename);
 // Load commands from JSON file
 const loadCommands = (): any => {
   try {
-    const configPath = path.join(__dirname, 'commands.json');
+    const configPath = path.join(__dirname, '../data/commands.json');
     const configData = fs.readFileSync(configPath, 'utf8');
     return JSON.parse(configData);
   } catch (error) {
@@ -29,7 +29,7 @@ async function runCommand(commandTemplate: string, answers: any): Promise<void> 
   try {
     // Compile the command template with Handlebars
     const template = Handlebars.compile(commandTemplate);
-    const command = template(answers);
+    const command: string = template(answers);
 
     console.log(`Executing: ${command}`);
     const { stdout, stderr } = await execPromise(command);
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
       ]);
 
       const selectedSubcommand = selectedCommand.subcommands.find(
-        (sub: any) => sub.name === subcommandType
+          (sub: any) => sub.name === subcommandType
       );
 
       if (selectedSubcommand) {

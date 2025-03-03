@@ -1,0 +1,26 @@
+{
+  "commands": [
+    {
+      "name": "Build",
+      "execute": "",
+      "options": [
+        {
+          "type": "input",
+          "name": "tag",
+          "message": "Enter image tag: (default: latest), e.g. my-image:latest",
+          "default": "latest",
+          "validate": "input => input || 'Version is required'"
+        }
+      ]
+    },
+    {
+      "name": "Deploy",
+      "execute": "",
+      "options": []
+    },
+    {
+      "name": "Initialize",
+      "execute": ""
+    }
+  ]
+}

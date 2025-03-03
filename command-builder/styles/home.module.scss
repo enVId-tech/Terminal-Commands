@@ -1,0 +1,273 @@
+// styles/Home.module.scss
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.box {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.commandBox {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.button {
+  background: #3182ce;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background: #2b6cb0;
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.saveButton, .actionButton {
+  composes: button;
+  background: #38a169;
+  font-size: 18px;
+  padding: 10px 24px;
+  margin: 0 8px;
+
+  &:hover {
+    background: #2f855a;
+  }
+}
+
+.bigSaveButton {
+  composes: saveButton;
+  padding: 12px 32px;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 32px 0;
+}
+
+.loadingState {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.description {
+  margin-bottom: 16px;
+}
+
+.message {
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.errorMessage {
+  composes: message;
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.successMessage {
+  composes: message;
+  background: #c6f6d5;
+  color: #2f855a;
+}
+
+.footer {
+  margin-top: 32px;
+  font-size: 14px;
+  color: #718096;
+  text-align: center;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+
+  &.active {
+    border-bottom: 2px solid #3182ce;
+    color: #3182ce;
+  }
+}
+
+.jsonEditor {
+  width: 100%;
+  min-height: 400px;
+  font-family: monospace;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.templateDropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.templateMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 220px;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.25rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 0.25rem;
+}
+
+.templateMenuItem {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #f7fafc;
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid #e2e8f0;
+  }
+}
+
+.emptyStateHelp {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: #718096;
+  font-style: italic;
+}
+
+.commandTree {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.treeTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.treeNode {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commandNode {
+  margin-bottom: 0.75rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid #4299e1;
+}
+
+.nodeName {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.nodeType {
+  color: #718096;
+  font-size: 0.875rem;
+  margin-left: 0.5rem;
+}
+
+.nodeExecute {
+  margin-top: 0.25rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+  background-color: #f7fafc;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  color: #4a5568;
+}
+
+.subItems {
+  margin: 0.5rem 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.optionItem, .subcommandItem {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.optionName, .subcommandName {
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.optionType {
+  color: #718096;
+  font-size: 0.75rem;
+}
+
+// Styles for the simulator page's outputs
+.commandLine {
+  color: #3182ce;
+  font-weight: 500;
+}
+
+.errorLine {
+  color: #e53e3e;
+}
+
+.successLine {
+  color: #38a169;
+}
+
+// Media queries for responsive design
+@media (max-width: 768px) {
+  .templateMenu {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-width: calc(100% - 2rem);
+  }
+}
