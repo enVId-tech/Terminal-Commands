@@ -1,5 +1,5 @@
 import inquirer from 'inquirer';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -44,31 +44,41 @@ const loadCommands = (configPath: string): any => {
   }
 };
 
-async function runCommand(commandTemplate: string, answers: any): Promise<void> {
-  try {
-    if (!commandTemplate || commandTemplate.trim() === '') {
-      return;
-    }
+async function runCommand(commandTemplate: string, answers: Record<string, unknown>): Promise<void> {
+  if (!commandTemplate?.trim()) return;
 
-    // Compile the command template with Handlebars
-    const template = Handlebars.compile(commandTemplate);
-    const command: string = template(answers);
+  const template = Handlebars.compile(commandTemplate);
+  const command = template(answers).trim();
+  if (!command) return;
 
-    // Skip empty commands (that may result from conditional expressions)
-    if (command.trim() === '') {
-      return;
-    }
+  console.log(`Executing: ${command}`);
 
-    console.log(`Executing: ${command}`);
-    const { stdout, stderr } = await execPromise(command);
+  return new Promise((resolve, reject) => {
+    const [cmd, ...args] = command.split(' ');
 
-    if (stdout) console.log(`Command output: ${stdout}`);
-    if (stderr) console.error(`Command errors: ${stderr}`);
+    // Handle npx/npm commands on Windows
+    const isWindows = process.platform === 'win32';
+    const executable = isWindows && (cmd === 'npx' || cmd === 'npm') ? `${cmd}.cmd` : cmd;
 
-    console.log('Command completed successfully!');
-  } catch (error) {
-    console.error('Command failed:', error);
-  }
+    const childProcess = spawn(executable, args, {
+      stdio: 'inherit',
+      shell: isWindows, // Use shell on Windows
+      env: process.env
+    });
+
+    childProcess.on('error', (err) => {
+      reject(new Error(`Failed to start command: ${err.message}`));
+    });
+
+    childProcess.on('close', (code) => {
+      if (code === 0) {
+        console.log('Command completed successfully!');
+        resolve();
+      } else {
+        reject(new Error(`Command failed with code ${code}`));
+      }
+    });
+  });
 }
 
 async function processOptions(options: any[]): Promise<any> {
