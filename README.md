@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Welcome to the Terminal Commands Program
+=========================================
+This CLI tool automates command execution through a flexible configuration system. It allows you to:
 
-## Getting Started
+- Define command workflows in JSON/YAML configuration files
+- Create hierarchical command structures with subcommands
+- Execute commands sequentially or in parallel
+- Prompt users for inputs with validation
+- Transform user input into command parameters
+- Chain commands with post-execution tasks
+- Dynamically select commands based on user choices
 
-First, run the development server:
+The program offers:  
+- Interactive menu-based command selection
+- Multiple configuration file support
+- Custom validation functions for user input
+- Templated command strings that incorporate user responses
+- Parallel or sequential command execution with user confirmation
+- Comprehensive error handling and command output display
+- Perfect for creating custom dev workflows, automating repetitive tasks, or building
+
+Tutorial
+===================
+This tutorial will guide you through the process of creating a simple command workflow using the Terminal Commands Program. We will define a command that prints a message to the console and then prompts the user for their name. The user's name will be displayed in the final output.
+
+Step 1: Install the Program
+----------------------------
+To install the program, first go to the CLI folder on this GitHub and download the `main.ts` folder
+
+As well, download the `package.json` file and the `tsconfig.json` file in the root directory and place them in the same directory as the `main.ts` file.
+
+Place the `main.ts` file in a directory of your choice. Open a terminal window in that directory and run the following command to install the necessary dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+NOTE: Make sure you have LATEST Node.js installed on your machine before running the above command. If you don't have Node.js installed, you can download it from the official website: https://nodejs.org/
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Step 2: Configuration file creation
+-----------------------------------
+Inside of main.ts, make sure to change the ``dataDirPath`` variable to the path of the configuration file you want to use.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Go to the website https://commands.etran.dev/ and create a configuration file that looks like this:
 
-## Learn More
+Hint: It is recommended to read the documentation on the website beforehand AND use the YAML format for the configuration file.
 
-To learn more about Next.js, take a look at the following resources:
+-----
+After you create the configuration file, download it using the `Export Configuration` button and place it in the same directory as the 'main.ts' file.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Step 3: Run the Program
+-----------------------
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+To run the program, open a terminal window in the directory where the `main.ts` file is located and run the following command:
 
-## Deploy on Vercel
+```bash
+node ./main.ts
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The program will start, and you will see the interactive menu with the command you created. Select the command, and follow the prompts to see the output.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Congratulations! You have successfully created and executed a simple command workflow using the Terminal Commands Program. You can now explore more advanced features and create complex workflows to automate your tasks.

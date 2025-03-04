@@ -11,6 +11,9 @@ import yaml from 'js-yaml';
 // Convert callback-based exec to Promise-based for use with async/await
 const execPromise = promisify(exec);
 
+// CHANGE THIS
+const dataDirPath: string = '../data';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -226,7 +229,7 @@ async function handleCommand(command: any): Promise<void> {
 
 async function selectConfigFile(): Promise<string> {
   // Find all JSON and YAML files in the data directory
-  const dataDir = path.join(__dirname, '../data');
+  const dataDir = path.join(__dirname, dataDirPath);
   const files = fs.readdirSync(dataDir).filter(file =>
     ['.json', '.yml', '.yaml'].includes(path.extname(file).toLowerCase())
   );
