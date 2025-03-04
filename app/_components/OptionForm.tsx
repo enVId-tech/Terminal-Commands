@@ -11,7 +11,7 @@ interface OptionFormProps {
 
 const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) => {
   const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onUpdate({ ...option, type: e.target.value as any });
+    onUpdate({ ...option, type: e.target.value as unknown as CommandOption['type'] });
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {

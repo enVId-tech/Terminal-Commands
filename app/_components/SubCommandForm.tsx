@@ -3,17 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import OptionForm from './OptionForm';
 import styles from '../../styles/commandform.module.scss';
+import {CommandOption, SubCommand} from "@/app/types/commands";
 
 interface SubCommandFormProps {
-  subcommand: any;
-  onUpdate: (subcommand: any) => void;
+  subcommand: SubCommand;
+  onUpdate: (subcommand: SubCommand) => void;
   onRemove: () => void;
 }
 
 // Extend subcommand interface for internal component use
 interface EnhancedSubcommand {
   name: string;
-  options?: any[];
+  options?: SubCommand;
   execute?: string | Record<string, string>;
   executeCommands?: string[];
   executeParallel?: boolean;
@@ -53,7 +54,7 @@ const SubCommandForm: React.FC<SubCommandFormProps> = ({ subcommand, onUpdate, o
     onUpdate({ ...subcommand, options });
   };
 
-  const updateOption = (index: number, updatedOption: any) => {
+  const updateOption = (index: number, updatedOption: CommandOption) => {
     const options = [...(subcommand.options || [])];
     options[index] = updatedOption;
     onUpdate({ ...subcommand, options });
@@ -127,7 +128,7 @@ const SubCommandForm: React.FC<SubCommandFormProps> = ({ subcommand, onUpdate, o
       <div className={styles.tabContent}>
         {activeTab === 'options' && (
           <div className={styles.formSection}>
-            {subcommand.options?.map((option: any, index: number) => (
+            {subcommand.options?.map((option: CommandOption, index: number) => (
               <div
                 key={`option-${index}`}
                 className={styles.itemContainer}

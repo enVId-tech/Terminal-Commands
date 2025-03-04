@@ -6,19 +6,18 @@ import CommandForm from './_components/CommandForm';
 import { Command, CommandConfig } from './types/commands';
 import styles from '@/styles/home.module.scss';
 import { useRouter } from 'next/navigation';
-import path from 'path';
 import yaml from 'js-yaml';
 
 export default function Home() {
   const [config, setConfig] = useState<CommandConfig>({ commands: [] });
   const [tempConfig, setTempConfig] = useState<CommandConfig>({ commands: [] });
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  // const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('editor');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [configFormat, setConfigFormat] = useState<'json' | 'yaml'>('json');
-  const [saveLocalPath, setSaveLocalPath] = useState<string>('./data');
+  const [configFormat, setConfigFormat] = useState<'json' | 'yaml'>('yaml');
+  // const [saveLocalPath, setSaveLocalPath] = useState<string>('./data');
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [selectedCommand, setSelectedCommand] = useState<number | null>(null);
   const [rawConfigValid, setRawConfigValid] = useState<boolean>(true);
@@ -143,33 +142,33 @@ export default function Home() {
     }
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    try {
-      const response = await fetch('/api/commands', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Config-Format': configFormat,
-          'X-Save-Path': saveLocalPath
-        },
-        body: JSON.stringify(config)
-      });
-
-      if (!response.ok) throw new Error('Failed to save commands');
-
-      setSuccessMessage(`Configuration saved successfully to ${saveLocalPath}/commands.${configFormat}`);
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error) {
-      console.error('Error saving commands:', error);
-      setErrorMessage('Failed to save commands');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // const handleSave = async () => {
+  //   setIsSaving(true);
+  //   setErrorMessage(null);
+  //   setSuccessMessage(null);
+  //
+  //   try {
+  //     const response = await fetch('/api/commands', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'X-Config-Format': configFormat,
+  //         'X-Save-Path': saveLocalPath
+  //       },
+  //       body: JSON.stringify(config)
+  //     });
+  //
+  //     if (!response.ok) throw new Error('Failed to save commands');
+  //
+  //     setSuccessMessage(`Configuration saved successfully to ${saveLocalPath}/commands.${configFormat}`);
+  //     setTimeout(() => setSuccessMessage(null), 3000);
+  //   } catch (error) {
+  //     console.error('Error saving commands:', error);
+  //     setErrorMessage('Failed to save commands');
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
 
   const addCommand = () => {
     const newCommand: Command = {
@@ -219,6 +218,7 @@ export default function Home() {
     } catch (error) {
       setErrorMessage(`Invalid ${configFormat.toUpperCase()} format`);
       setRawConfigValid(false);
+      console.error(error);
     }
   };
 
@@ -334,9 +334,9 @@ export default function Home() {
     setConfigFormat(prevFormat => prevFormat === 'json' ? 'yaml' : 'json');
   };
 
-  const handlePathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSaveLocalPath(e.target.value);
-  };
+  // const handlePathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   setSaveLocalPath(e.target.value);
+  // };
 
   const togglePreview = () => {
     setShowPreview(!showPreview);
@@ -455,10 +455,12 @@ export default function Home() {
             </button>
             <button
                 className={styles.saveButton}
-                onClick={handleSave}
-                disabled={isSaving}
+                // onClick={handleSave}
+                // disabled={isSaving}
+                onClick={handleExportConfig}
             >
-              {isSaving ? 'Saving...' : 'Save Configuration'}
+              Export Configuration
+              {/*{isSaving ? 'Saving...' : 'Export Configuration'}*/}
             </button>
           </div>
         </div>
@@ -514,16 +516,16 @@ export default function Home() {
             </button>
           </div>
 
-          <div className={styles.savePath}>
-            <label htmlFor="savePath">Local Save Path:</label>
-            <input
-                type="text"
-                id="savePath"
-                value={saveLocalPath}
-                onChange={handlePathChange}
-                placeholder="./data"
-            />
-          </div>
+        {/*  <div className={styles.savePath}>*/}
+        {/*    <label htmlFor="savePath">Local Save Path:</label>*/}
+        {/*    <input*/}
+        {/*        type="text"*/}
+        {/*        id="savePath"*/}
+        {/*        value={saveLocalPath}*/}
+        {/*        onChange={handlePathChange}*/}
+        {/*        placeholder="./data"*/}
+        {/*    />*/}
+        {/*  </div>*/}
         </div>
 
         {showPreview && (
@@ -638,15 +640,17 @@ export default function Home() {
         <div className={styles.saveButtonContainer}>
           <button
               className={styles.bigSaveButton}
-              onClick={handleSave}
-              disabled={isSaving}
+              // onClick={handleSave}
+              onClick={handleExportConfig}
+              // disabled={isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save Configuration'}
+            Export Configuration
+            {/*{isSaving ? 'Saving...' : 'Export Configuration'}*/}
           </button>
         </div>
 
         <div className={styles.footer}>
-          <p>CLI Command Builder — Build interactive CLI tools with {configFormat.toUpperCase()} configuration</p>
+          <p>Erick Tran - CLI Command Builder — Build interactive CLI tools with {configFormat.toUpperCase()} configuration</p>
         </div>
       </div>
   );

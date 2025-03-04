@@ -1,28 +1,1391 @@
 // styles/documentation.module.scss
-.container {
-  padding: 20px;
-  max-width: 800px;
+
+$primary-color: #4f46e5;
+$primary-hover: #3c34b6;
+$secondary-color: #6366f1;
+$secondary-hover: #4f46e5;
+$text-color: #334155;
+$muted-text: #64748b;
+$border-color: #e2e8f0;
+$background-color: #f8fafc;
+$code-bg: #1e293b;
+$code-text: #f1f5f9;
+$success-color: #10b981;
+$danger-color: #ef4444;
+$danger-hover: #dc2626;
+$warning-color: #f59e0b;
+$info-color: #3b82f6;
+
+@mixin button {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  outline: none;
+}
+
+.documentationContainer {
+  max-width: 1280px;
   margin: 0 auto;
+  padding: 24px;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: $text-color;
+  background-color: $background-color;
+}
 
-  h1, h2, h3 {
-    color: #2d3748;
+.docHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid $border-color;
+
+  h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+    color: $text-color;
+  }
+}
+
+.backButton {
+  @include button;
+  background-color: $primary-color;
+  color: white;
+  text-decoration: none;
+
+  &:hover {
+    background-color: $primary-hover;
+  }
+}
+
+.tabNavigation {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid $border-color;
+
+  &::-webkit-scrollbar {
+    height: 4px;
   }
 
-  p, ul, pre {
-    color: #4a5568;
+  &::-webkit-scrollbar-track {
+    background: $border-color;
+    border-radius: 4px;
   }
 
-  pre {
-    background-color: #f7fafc;
-    padding: 10px;
-    border-radius: 5px;
-    overflow-x: auto;
+  &::-webkit-scrollbar-thumb {
+    background: $secondary-color;
+    border-radius: 4px;
   }
+}
+
+.tabButton {
+  @include button;
+  background-color: transparent;
+  color: $muted-text;
+  font-size: 16px;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: 12px 20px;
+  margin-right: 8px;
+
+  &:hover {
+    color: $primary-color;
+  }
+
+  &.activeTab {
+    color: $primary-color;
+    border-bottom-color: $primary-color;
+    font-weight: 600;
+  }
+}
+
+.docContent {
+  section {
+    margin-bottom: 40px;
+  }
+
+  h2 {
+    margin-top: 0;
+    margin-bottom: 24px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: $text-color;
+    padding-bottom: 12px;
+    border-bottom: 1px solid $border-color;
+  }
+
+  h3 {
+    margin-top: 32px;
+    margin-bottom: 16px;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: $text-color;
+  }
+
+  h4 {
+    margin-top: 24px;
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: $text-color;
+  }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-left: 24px;
+    line-height: 1.6;
+
+    li {
+      margin-bottom: 8px;
+    }
+  }
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  margin: 24px 0;
+}
+
+.featureCard {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  border: 1px solid $border-color;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: $primary-color;
+  }
+
+  ul {
+    margin-bottom: 0;
+  }
+}
+
+.workflowDiagram {
+  margin: 32px 0;
+
+  h3 {
+    margin-bottom: 24px;
+  }
+
+  .diagram {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .step {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    border: 1px solid $border-color;
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+
+    .stepNumber {
+      width: 32px;
+      height: 32px;
+      background-color: $primary-color;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      margin: 0 auto 16px;
+    }
+
+    p {
+      margin: 0;
+      font-weight: 500;
+    }
+  }
+
+  .arrow {
+    font-size: 24px;
+    color: $muted-text;
+    font-weight: 600;
+  }
+}
+
+.uiSection {
+  margin-bottom: 32px;
+}
+
+.uiScreenshot {
+  margin: 24px 0;
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.imagePlaceholder {
+  background-color: #e2e8f0;
+  padding: 80px 40px;
+  text-align: center;
+
+  p {
+    margin: 0;
+    font-weight: 500;
+    color: $muted-text;
+  }
+}
+
+.numberedList {
+  list-style-type: decimal;
+  counter-reset: item;
+  padding-left: 0;
+
+  li {
+    counter-increment: item;
+    margin-bottom: 16px;
+    position: relative;
+    padding-left: 36px;
+
+    &::before {
+      content: counter(item);
+      background-color: $primary-color;
+      color: white;
+      font-weight: 600;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+
+    strong {
+      color: $text-color;
+      font-weight: 600;
+    }
+  }
+}
+
+.formatComparison {
+  margin: 32px 0;
+}
+
+.compareColumns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.compareColumn {
+  h4 {
+    margin-top: 0;
+  }
+}
+
+.codeBlock {
+  background-color: $code-bg;
+  color: $code-text;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
 
   code {
-    background-color: #edf2f7;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-family: monospace;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    display: block;
+    white-space: pre;
+  }
+}
+
+.structureSection {
+  margin-bottom: 32px;
+
+  code {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+  }
+}
+
+.propertyTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 24px;
+
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid $border-color;
+  }
+
+  th {
+    background-color: #f1f5f9;
+    font-weight: 600;
+    color: $text-color;
+  }
+
+  td code {
+    background-color: #e2e8f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+  }
+}
+
+.optionsSection {
+  margin-bottom: 32px;
+}
+
+.optionTypes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  margin: 24px 0;
+}
+
+.optionType {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  border: 1px solid $border-color;
+
+  h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: $primary-color;
+  }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 16px;
+  }
+
+  .codeBlock {
+    margin-bottom: 0;
+  }
+}
+
+.exampleSection {
+  margin-bottom: 32px;
+
+  h3 {
+    margin-top: 24px;
+  }
+}
+
+.manualSteps {
+  margin: 24px 0;
+
+  .step {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    border: 1px solid $border-color;
+    margin-bottom: 16px;
+
+    h4 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: $primary-color;
+    }
+
+    p {
+      margin-top: 0;
+      margin-bottom: 12px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    .codeBlock {
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.docFooter {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid $border-color;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: $muted-text;
+  font-size: 14px;
+
+  p {
+    margin: 0;
+  }
+}
+
+.backToTopButton {
+  @include button;
+  background-color: $secondary-color;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+
+  &:hover {
+    background-color: $secondary-hover;
+  }
+}
+
+// Responsive styles
+@media (max-width: 768px) {
+  .docHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .compareColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .optionTypes {
+    grid-template-columns: 1fr;
+  }
+
+  .featureGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .workflowDiagram .diagram {
+    flex-direction: column;
+  }
+
+  .arrow {
+    transform: rotate(90deg);
+  }
+
+  .docFooter {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .propertyTable {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+// Specific styling for code highlights
+.codeHighlight {
+  color: #7dd3fc;
+}
+
+.keywordHighlight {
+  color: #f472b6;
+}
+
+.stringHighlight {
+  color: #86efac;
+}
+
+.commentHighlight {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+// Documentation navigation
+.docNavigation {
+  margin: 32px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+
+  .navCard {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    border: 1px solid $border-color;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    color: $text-color;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border-color: $primary-color;
+
+      h3 {
+        color: $primary-color;
+      }
+    }
+
+    h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: $text-color;
+      transition: color 0.2s ease;
+    }
+
+    p {
+      margin: 0;
+      color: $muted-text;
+    }
+  }
+}
+
+// API documentation
+.apiDoc {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  border: 1px solid $border-color;
+  margin-bottom: 24px;
+
+  .apiHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid $border-color;
+
+    h3 {
+      margin: 0;
+      color: $text-color;
+    }
+
+    .apiMethod {
+      padding: 4px 8px;
+      border-radius: 4px;
+      background-color: $primary-color;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+  }
+
+  .apiDescription {
+    margin-bottom: 16px;
+  }
+
+  .apiParams {
+    margin-bottom: 16px;
+
+    h4 {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+
+    .paramRow {
+      display: flex;
+      margin-bottom: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid $border-color;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .paramName {
+        width: 30%;
+        font-weight: 600;
+      }
+
+      .paramType {
+        width: 20%;
+        color: $info-color;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      }
+
+      .paramDescription {
+        width: 50%;
+      }
+    }
+  }
+
+  .apiExample {
+    h4 {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+  }
+}
+
+// Command detail view
+.commandDetail {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  border: 1px solid $border-color;
+  margin-bottom: 24px;
+
+  .commandHeader {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid $border-color;
+
+    h3 {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+
+    .commandDescription {
+      color: $muted-text;
+    }
+  }
+
+  .commandOptions {
+    margin-bottom: 16px;
+
+    h4 {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+
+    .optionsList {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      .optionItem {
+        padding: 12px;
+        border: 1px solid $border-color;
+        border-radius: 6px;
+        margin-bottom: 12px;
+
+        .optionName {
+          font-weight: 600;
+          margin-bottom: 8px;
+        }
+
+        .optionDetails {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+          margin-bottom: 8px;
+
+          .optionType {
+            background-color: $secondary-color;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+          }
+
+          .optionRequired {
+            background-color: $info-color;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+          }
+
+          .optionDefault {
+            background-color: $background-color;
+            color: $text-color;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid $border-color;
+          }
+        }
+
+        .optionDescription {
+          margin: 0;
+        }
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+
+  .commandExecution {
+    margin-bottom: 16px;
+
+    h4 {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+
+    .parallelExecution {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      .badge {
+        background-color: $secondary-color;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .commandExample {
+    h4 {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+  }
+}
+
+// Search functionality
+.searchContainer {
+  margin-bottom: 24px;
+
+  .searchInput {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    font-size: 16px;
+
+    &:focus {
+      outline: none;
+      border-color: $primary-color;
+      box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+    }
+  }
+}
+
+// Table of contents
+.tableOfContents {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  border: 1px solid $border-color;
+  margin-bottom: 24px;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 1.2rem;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      margin-bottom: 8px;
+
+      a {
+        color: $text-color;
+        text-decoration: none;
+        display: block;
+        padding: 4px 0;
+        transition: color 0.2s ease;
+
+        &:hover {
+          color: $primary-color;
+        }
+      }
+
+      ul {
+        padding-left: 16px;
+        margin-top: 8px;
+
+        li {
+          margin-bottom: 4px;
+
+          a {
+            font-size: 0.9rem;
+            color: $muted-text;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Version selector
+.versionSelector {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 24px;
+
+  select {
+    appearance: none;
+    background-color: white;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    padding: 8px 32px 8px 12px;
+    font-size: 14px;
+    color: $text-color;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: $primary-color;
+    }
+  }
+
+  &::after {
+    content: '▼';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 10px;
+    color: $muted-text;
+  }
+}
+
+// Interactive elements styling
+.interactive {
+  .toggleSection {
+    margin-bottom: 16px;
+
+    .toggleHeader {
+      background-color: $background-color;
+      padding: 12px;
+      border: 1px solid $border-color;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+
+      h4 {
+        margin: 0;
+      }
+
+      .toggleIcon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+
+    .toggleContent {
+      padding: 16px;
+      border: 1px solid $border-color;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+    }
+  }
+
+  .tabContent {
+    margin-top: -1px;
+    padding: 20px;
+    border: 1px solid $border-color;
+    border-radius: 0 0 6px 6px;
+  }
+}
+
+// Alert boxes for important information
+.alert {
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: 6px;
+
+  &.info {
+    background-color: rgba($info-color, 0.1);
+    border-left: 4px solid $info-color;
+  }
+
+  &.warning {
+    background-color: rgba($warning-color, 0.1);
+    border-left: 4px solid $warning-color;
+  }
+
+  &.danger {
+    background-color: rgba($danger-color, 0.1);
+    border-left: 4px solid $danger-color;
+  }
+
+  &.success {
+    background-color: rgba($success-color, 0.1);
+    border-left: 4px solid $success-color;
+  }
+
+  h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+  }
+
+  p {
+    margin-bottom: 0;
+  }
+}
+
+// Breadcrumb navigation
+.breadcrumbs {
+  margin-bottom: 24px;
+  font-size: 14px;
+
+  .breadcrumbList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+
+    li {
+      display: flex;
+      align-items: center;
+      margin-right: 8px;
+
+      a {
+        color: $muted-text;
+        text-decoration: none;
+
+        &:hover {
+          color: $primary-color;
+          text-decoration: underline;
+        }
+      }
+
+      .separator {
+        margin-left: 8px;
+        color: $muted-text;
+      }
+
+      &:last-child {
+        font-weight: 500;
+        color: $text-color;
+      }
+    }
+  }
+}
+
+// Copy to clipboard button for code blocks
+.copyButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: $code-text;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+// Position relative on code blocks for copy button
+.relativeCodeBlock {
+  position: relative;
+}
+
+// Documentation tags
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+
+  .tag {
+    display: inline-block;
+    padding: 4px 8px;
+    background-color: $background-color;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    font-size: 12px;
+    color: $muted-text;
+  }
+}
+
+// Features comparison table
+.comparisonTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 24px;
+
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid $border-color;
+  }
+
+  th {
+    background-color: #f1f5f9;
+    font-weight: 600;
+    color: $text-color;
+  }
+
+  .checkmark {
+    color: $success-color;
+    font-size: 1.2rem;
+  }
+
+  .xmark {
+    color: $danger-color;
+    font-size: 1.2rem;
+  }
+
+  .partial {
+    color: $warning-color;
+    font-size: 1.2rem;
+  }
+}
+
+// Hierarchy section styling
+.hierarchySection {
+  margin-bottom: 32px;
+
+  h2 {
+    margin-bottom: 24px;
+    font-size: 1.8rem;
+    color: $text-color;
+  }
+
+  .hierarchyIntro {
+    margin-bottom: 32px;
+
+    p {
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+  }
+
+  // Command hierarchy diagram
+  .hierarchyDiagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 32px 0;
+
+    .diagramNode {
+      padding: 12px 24px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: scale(1.05);
+      }
+
+      &.rootNode {
+        background-color: $primary-color;
+        color: white;
+        min-width: 160px;
+      }
+
+      &.subNode {
+        background-color: $secondary-color;
+        color: white;
+        min-width: 140px;
+      }
+
+      &.leafNode {
+        background-color: $info-color;
+        color: white;
+        min-width: 140px;
+      }
+
+      strong {
+        font-weight: 600;
+      }
+    }
+
+    .diagramLevel {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      width: 100%;
+    }
+
+    .diagramArrows {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      height: 30px;
+      margin: 4px 0;
+      width: 100%;
+
+      .diagramArrow {
+        width: 2px;
+        height: 100%;
+        background-color: $border-color;
+        position: relative;
+
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: -4px;
+          width: 10px;
+          height: 10px;
+          border-right: 2px solid $border-color;
+          border-bottom: 2px solid $border-color;
+          transform: rotate(45deg);
+        }
+      }
+    }
+  }
+
+  // Hierarchy details
+  .hierarchyDetail {
+    margin-bottom: 36px;
+
+    h3 {
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+      color: $text-color;
+      border-bottom: 1px solid $border-color;
+      padding-bottom: 8px;
+    }
+
+    .hierarchyDefinition {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 24px;
+
+      .definitionCard, .exampleCard {
+        flex: 1;
+        min-width: 300px;
+        padding: 16px;
+        border-radius: 6px;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 1px solid $border-color;
+
+        h4 {
+          margin-top: 0;
+          margin-bottom: 16px;
+          color: $text-color;
+          font-size: 1.1rem;
+        }
+
+        p {
+          margin-bottom: 12px;
+          line-height: 1.5;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+
+        ul {
+          margin: 0;
+          padding-left: 18px;
+
+          li {
+            margin-bottom: 8px;
+
+            &:last-child {
+              margin-bottom: 0;
+            }
+
+            strong {
+              color: $text-color;
+              font-weight: 600;
+            }
+          }
+        }
+      }
+    }
+
+    .codeExample {
+      h4 {
+        margin-bottom: 12px;
+        font-size: 1.1rem;
+      }
+
+      .codeBlock {
+        border-radius: 6px;
+        margin: 0;
+        position: relative;
+
+        code {
+          font-size: 14px;
+        }
+      }
+    }
+  }
+
+  // Hierarchy cheatsheet
+  .hierarchyCheatsheet {
+    h3 {
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+      color: $text-color;
+      border-bottom: 1px solid $border-color;
+      padding-bottom: 8px;
+    }
+
+    .propertyTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+
+      th, td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid $border-color;
+      }
+
+      th {
+        background-color: #f1f5f9;
+        font-weight: 600;
+        color: $text-color;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      tr:nth-child(even) {
+        background-color: #f9fafc;
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .hierarchySection {
+    .hierarchyDefinition {
+      flex-direction: column;
+
+      .definitionCard, .exampleCard {
+        width: 100%;
+      }
+    }
+
+    .hierarchyDiagram {
+      .diagramLevel {
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+      }
+
+      .diagramArrows {
+        flex-direction: column;
+        height: auto;
+        align-items: center;
+
+        .diagramArrow {
+          height: 20px;
+          width: 2px;
+        }
+      }
+    }
+
+    .propertyTable {
+      font-size: 14px;
+
+      th, td {
+        padding: 10px 12px;
+      }
+    }
+  }
+
+  .hierarchySection {
+    .hierarchyDefinition {
+      flex-direction: column;
+
+      .definitionCard, .exampleCard {
+        width: 100%;
+      }
+    }
+
+    .hierarchyDiagram {
+      .diagramLevel {
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+      }
+
+      .diagramArrows {
+        flex-direction: column;
+        height: auto;
+        align-items: center;
+
+        .diagramArrow {
+          height: 20px;
+          width: 2px;
+        }
+      }
+    }
+
+    .propertyTable {
+      font-size: 14px;
+
+      th, td {
+        padding: 10px 12px;
+      }
+    }
+  }
+}
+// Print styles
+@media print {
+  .documentationContainer {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .tabNavigation,
+  .backButton,
+  .backToTopButton,
+  .docNavigation {
+    display: none;
+  }
+
+  .docContent {
+    page-break-after: always;
+    h2, h3 {
+      page-break-after: avoid;
+    }
+  }
+
+  .codeBlock {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .propertyTable,
+  .comparisonTable {
+    page-break-inside: avoid;
   }
 }

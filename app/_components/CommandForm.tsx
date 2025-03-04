@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Command } from '../types/commands';
+import {Command, CommandOption, SubCommand} from '../types/commands';
 import OptionForm from './OptionForm';
 import SubCommandForm from './SubCommandForm';
 import styles from '../../styles/commandform.module.scss';
@@ -52,7 +52,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, onUpdate, onRemove }
     onUpdate({ ...command, options });
   };
 
-  const updateOption = (index: number, updatedOption: any) => {
+  const updateOption = (index: number, updatedOption: CommandOption) => {
     if (!command.options) return;
     const options = [...command.options];
     options[index] = updatedOption;
@@ -75,7 +75,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, onUpdate, onRemove }
     onUpdate({ ...command, subcommands });
   };
 
-  const updateSubcommand = (index: number, updatedSubcommand: any) => {
+  const updateSubcommand = (index: number, updatedSubcommand: SubCommand) => {
     if (!command.subcommands) return;
     const subcommands = [...command.subcommands];
     subcommands[index] = updatedSubcommand;
