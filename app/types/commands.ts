@@ -1,4 +1,4 @@
-// types/commands.ts
+// app/types/commands.ts
 
 export interface CommandOption {
   type: 'input' | 'list' | 'confirm' | 'password' | 'editor' | 'checkbox' | 'number';
@@ -9,18 +9,27 @@ export interface CommandOption {
   validate?: string;
 }
 
-export interface SubCommand {
-  name: string;
-  options?: CommandOption[];
-  subcommands?: SubCommand[];
-  execute?: string | Record<string, string>;
-}
-
 export interface Command {
   name: string;
   options?: CommandOption[];
+  execute?: string | Record<string, string>; // For backward compatibility
+  executeCommands?: string[];
+  executeParallel?: boolean;
+  requireExecutionChoice?: boolean; // Made optional
   subcommands?: SubCommand[];
+  description?: string;
+}
+
+export interface SubCommand {
+  name: string;
+  options?: CommandOption[];
   execute?: string | Record<string, string>;
+  executeCommands?: string[];
+  executeParallel?: boolean;
+  requireExecutionChoice?: boolean; // Made optional
+  postExecute?: string; // Legacy support
+  postExecuteCommands?: string[];
+  postExecuteParallel?: boolean;
 }
 
 export interface CommandConfig {

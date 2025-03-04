@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Command } from '../types/commands';
 import OptionForm from './OptionForm';
 import SubCommandForm from './SubCommandForm';
+import styles from '../../styles/commandform.module.scss';
 
 interface CommandFormProps {
   command: Command;
@@ -11,15 +12,34 @@ interface CommandFormProps {
   onRemove: () => void;
 }
 
+// Extend Command interface for internal component use
+interface EnhancedCommand extends Command {
+  executeCommands?: string[];
+  executeParallel?: boolean;
+}
+
 const CommandForm: React.FC<CommandFormProps> = ({ command, onUpdate, onRemove }) => {
   const [activeTab, setActiveTab] = useState<'options' | 'subcommands' | 'execute'>('options');
+  const enhancedCommand = command as EnhancedCommand;
+
+  // Migrate legacy execute field if needed
+  useEffect(() => {
+    if (typeof command.execute === 'string' && command.execute && !enhancedCommand.executeCommands) {
+      onUpdate({
+        ...command,
+        executeCommands: [command.execute],
+        execute: undefined // Remove legacy field
+      } as EnhancedCommand);
+    } else if (!enhancedCommand.executeCommands) {
+      onUpdate({
+        ...command,
+        executeCommands: ['']
+      } as EnhancedCommand);
+    }
+  }, []);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdate({ ...command, name: e.target.value });
-  };
-
-  const handleExecuteChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    onUpdate({ ...command, execute: e.target.value });
   };
 
   const addOption = () => {
@@ -69,24 +89,34 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, onUpdate, onRemove }
     onUpdate({ ...command, subcommands });
   };
 
-  // UI style variables
-  const tabStyle = {
-    padding: '8px 16px',
-    cursor: 'pointer',
-    borderBottom: '2px solid transparent',
-    fontWeight: 500,
+  const addExecuteCommand = () => {
+    const executeCommands = [...(enhancedCommand.executeCommands || []), ''];
+    onUpdate({ ...command, executeCommands } as EnhancedCommand);
   };
 
-  const activeTabStyle = {
-    ...tabStyle,
-    borderBottom: '2px solid #3182ce',
-    color: '#3182ce',
+  const updateExecuteCommand = (index: number, value: string) => {
+    const executeCommands = [...(enhancedCommand.executeCommands || [])];
+    executeCommands[index] = value;
+    onUpdate({ ...command, executeCommands } as EnhancedCommand);
+  };
+
+  const removeExecuteCommand = (index: number) => {
+    const executeCommands = [...(enhancedCommand.executeCommands || [])];
+    executeCommands.splice(index, 1);
+    onUpdate({ ...command, executeCommands } as EnhancedCommand);
+  };
+
+  const toggleExecuteParallel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdate({
+      ...command,
+      executeParallel: e.target.checked
+    } as EnhancedCommand);
   };
 
   return (
-    <div className="command-form">
-      <div className="form-header" style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>
+    <div className={styles.commandForm}>
+      <div className={styles.formSection}>
+        <label className={styles.sectionTitle}>
           Command Name:
         </label>
         <input
@@ -94,157 +124,141 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, onUpdate, onRemove }
           value={command.name}
           onChange={handleNameChange}
           placeholder="e.g. Build"
-          style={{
-            width: '100%',
-            padding: '8px',
-            border: '1px solid #e2e8f0',
-            borderRadius: '4px',
-            fontSize: '16px',
-          }}
+          className={styles.nameInput}
         />
       </div>
 
-      <div className="tabs" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0' }}>
-          <div
-            onClick={() => setActiveTab('options')}
-            style={activeTab === 'options' ? activeTabStyle : tabStyle}
-          >
-            Options
-          </div>
-          <div
-            onClick={() => setActiveTab('subcommands')}
-            style={activeTab === 'subcommands' ? activeTabStyle : tabStyle}
-          >
-            Subcommands
-          </div>
-          <div
-            onClick={() => setActiveTab('execute')}
-            style={activeTab === 'execute' ? activeTabStyle : tabStyle}
-          >
-            Execute
-          </div>
+      <div className={styles.tabs}>
+        <div
+          onClick={() => setActiveTab('options')}
+          className={`${styles.tab} ${activeTab === 'options' ? styles.active : ''}`}
+        >
+          Options
+        </div>
+        <div
+          onClick={() => setActiveTab('subcommands')}
+          className={`${styles.tab} ${activeTab === 'subcommands' ? styles.active : ''}`}
+        >
+          Subcommands
+        </div>
+        <div
+          onClick={() => setActiveTab('execute')}
+          className={`${styles.tab} ${activeTab === 'execute' ? styles.active : ''}`}
+        >
+          Execute
         </div>
       </div>
 
-      {activeTab === 'options' && (
-        <div className="options-tab">
-          {command.options?.map((option, index) => (
-            <div
-              key={`option-${index}`}
-              style={{
-                padding: '12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-                marginBottom: '12px',
-              }}
-            >
-              <OptionForm
-                option={option}
-                onUpdate={(updatedOption) => updateOption(index, updatedOption)}
-                onRemove={() => removeOption(index)}
-              />
+      <div className={styles.tabContent}>
+        {activeTab === 'options' && (
+          <div className={styles.formSection}>
+            {command.options?.map((option, index) => (
+              <div
+                key={`option-${index}`}
+                className={styles.itemContainer}
+              >
+                <OptionForm
+                  option={option}
+                  onUpdate={(updatedOption) => updateOption(index, updatedOption)}
+                  onRemove={() => removeOption(index)}
+                />
+              </div>
+            ))}
+
+            <button onClick={addOption} className={styles.button}>
+              Add Option
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'subcommands' && (
+          <div className={styles.formSection}>
+            {command.subcommands?.map((subcommand, index) => (
+              <div
+                key={`subcommand-${index}`}
+                className={styles.itemContainer}
+              >
+                <SubCommandForm
+                  subcommand={subcommand}
+                  onUpdate={(updatedSubcommand) => updateSubcommand(index, updatedSubcommand)}
+                  onRemove={() => removeSubcommand(index)}
+                />
+              </div>
+            ))}
+
+            <button onClick={addSubcommand} className={styles.button}>
+              Add Subcommand
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'execute' && (
+          <div className={styles.formSection}>
+            <label className={styles.sectionTitle}>
+              Execute Commands:
+            </label>
+
+            <div className={styles.checkboxContainer}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={enhancedCommand.executeParallel || false}
+                  onChange={toggleExecuteParallel}
+                  className={styles.checkbox}
+                  disabled={command.subcommands && command.subcommands.length > 0}
+                />
+                <span>Execute commands in parallel</span>
+              </label>
             </div>
-          ))}
 
-          <button
-            onClick={addOption}
-            style={{
-              backgroundColor: '#3182ce',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              marginTop: '8px',
-            }}
-          >
-            Add Option
-          </button>
-        </div>
-      )}
-
-      {activeTab === 'subcommands' && (
-        <div className="subcommands-tab">
-          {command.subcommands?.map((subcommand, index) => (
-            <div
-              key={`subcommand-${index}`}
-              style={{
-                padding: '12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-                marginBottom: '12px',
-              }}
-            >
-              <SubCommandForm
-                subcommand={subcommand}
-                onUpdate={(updatedSubcommand) => updateSubcommand(index, updatedSubcommand)}
-                onRemove={() => removeSubcommand(index)}
-              />
+            <div className={styles.executeCommandsList}>
+              {(enhancedCommand.executeCommands || []).map((cmd, index) => (
+                <div
+                  key={`cmd-${index}`}
+                  className={styles.executeCommandItem}
+                >
+                  <input
+                    type="text"
+                    value={cmd}
+                    onChange={(e) => updateExecuteCommand(index, e.target.value)}
+                    placeholder="npm run build -- --env={{buildType}}"
+                    className={styles.nameInput}
+                    disabled={command.subcommands && command.subcommands.length > 0}
+                  />
+                  <button
+                    onClick={() => removeExecuteCommand(index)}
+                    className={styles.dangerButton}
+                    disabled={command.subcommands && command.subcommands.length > 0}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
 
-          <button
-            onClick={addSubcommand}
-            style={{
-              backgroundColor: '#3182ce',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              marginTop: '8px',
-            }}
-          >
-            Add Subcommand
-          </button>
-        </div>
-      )}
-
-      {activeTab === 'execute' && (
-        <div className="execute-tab">
-          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>
-            Execute Command:
-          </label>
-          <div style={{ marginBottom: '16px' }}>
-            <input
-              type="text"
-              value={typeof command.execute === 'string' ? command.execute : ''}
-              onChange={handleExecuteChange}
-              placeholder="npm run build -- --env={{buildType}}"
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-              }}
+            <button
+              onClick={addExecuteCommand}
+              className={styles.button}
               disabled={command.subcommands && command.subcommands.length > 0}
-            />
+            >
+              Add Command
+            </button>
+
             {command.subcommands && command.subcommands.length > 0 && (
-              <div style={{ marginTop: '4px', fontSize: '14px', color: '#718096' }}>
+              <div className={styles.helpText}>
                 Execute is disabled when subcommands exist
               </div>
             )}
-          </div>
 
-          <div className="help-text" style={{ marginTop: '8px', fontSize: '14px', color: '#4a5568' }}>
-            Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code>
+            <div className={styles.helpText}>
+              Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div style={{ marginTop: '16px' }}>
-        <button
-          onClick={onRemove}
-          style={{
-            backgroundColor: '#e53e3e',
-            color: 'white',
-            border: 'none',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
+      <div className={styles.actionButtons}>
+        <button onClick={onRemove} className={styles.dangerButton}>
           Remove Command
         </button>
       </div>

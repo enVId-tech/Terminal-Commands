@@ -6,6 +6,7 @@ import * as path from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import Handlebars from 'handlebars';
+import yaml from 'js-yaml';
 
 // Convert callback-based exec to Promise-based for use with async/await
 const execPromise = promisify(exec);
@@ -13,12 +14,27 @@ const execPromise = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load commands from JSON file
-const loadCommands = (): any => {
+// Register custom Handlebars helpers
+Handlebars.registerHelper('includes', function(array, value) {
+  return Array.isArray(array) && array.includes(value);
+});
+
+// Load commands from JSON or YAML file
+const loadCommands = (configPath: string): any => {
   try {
-    const configPath = path.join(__dirname, '../data/commands.json');
     const configData = fs.readFileSync(configPath, 'utf8');
-    return JSON.parse(configData);
+
+    // Determine file format based on extension
+    const extension = path.extname(configPath).toLowerCase();
+
+    if (extension === '.json') {
+      return JSON.parse(configData);
+    } else if (extension === '.yml' || extension === '.yaml') {
+      return yaml.load(configData);
+    } else {
+      console.error('Unsupported file format. Please use .json, .yml, or .yaml');
+      process.exit(1);
+    }
   } catch (error) {
     console.error('Failed to load commands configuration:', error);
     process.exit(1);
@@ -27,9 +43,18 @@ const loadCommands = (): any => {
 
 async function runCommand(commandTemplate: string, answers: any): Promise<void> {
   try {
+    if (!commandTemplate || commandTemplate.trim() === '') {
+      return;
+    }
+
     // Compile the command template with Handlebars
     const template = Handlebars.compile(commandTemplate);
     const command: string = template(answers);
+
+    // Skip empty commands (that may result from conditional expressions)
+    if (command.trim() === '') {
+      return;
+    }
 
     console.log(`Executing: ${command}`);
     const { stdout, stderr } = await execPromise(command);
@@ -44,6 +69,8 @@ async function runCommand(commandTemplate: string, answers: any): Promise<void> 
 }
 
 async function processOptions(options: any[]): Promise<any> {
+  if (!options || options.length === 0) return {};
+
   // Process function strings (like validators) into actual functions
   const processedOptions = options.map(option => {
     const processed = { ...option };
@@ -62,29 +89,180 @@ async function processOptions(options: any[]): Promise<any> {
   return inquirer.prompt(processedOptions);
 }
 
-async function handleSubcommand(subcommand: any): Promise<void> {
-  if (subcommand.options) {
-    const answers = await processOptions(subcommand.options);
+async function runCommands(commandTemplates: string[], answers: any, runParallel: boolean = false): Promise<void> {
+  if (!commandTemplates || commandTemplates.length === 0) {
+    console.log('No commands to execute');
+    return;
+  }
 
-    // Handle dynamic command based on answers
-    if (typeof subcommand.execute === 'object') {
-      const commandKey = answers[Object.keys(answers)[0]];
-      if (subcommand.execute[commandKey]) {
-        await runCommand(subcommand.execute[commandKey], answers);
-      } else {
-        console.error(`No command defined for ${commandKey}`);
+  try {
+    if (runParallel) {
+      // Execute commands in parallel
+      console.log('Executing commands in parallel:');
+      commandTemplates.forEach(cmd => {
+        if (cmd && cmd.trim() !== '') console.log(`- ${cmd}`);
+      });
+
+      await Promise.all(
+        commandTemplates
+          .filter(cmd => cmd && cmd.trim() !== '')
+          .map(commandTemplate => runCommand(commandTemplate, answers))
+      );
+
+      console.log('All parallel commands completed');
+    } else {
+      // Execute commands sequentially
+      console.log('Executing commands sequentially:');
+      commandTemplates.forEach(cmd => {
+        if (cmd && cmd.trim() !== '') console.log(`- ${cmd}`);
+      });
+
+      for (const commandTemplate of commandTemplates) {
+        if (commandTemplate && commandTemplate.trim() !== '') {
+          await runCommand(commandTemplate, answers);
+        }
       }
-    } else if (typeof subcommand.execute === 'string') {
-      await runCommand(subcommand.execute, answers);
+
+      console.log('All sequential commands completed');
     }
-  } else if (subcommand.execute) {
-    await runCommand(subcommand.execute, {});
+  } catch (error) {
+    console.error('Error executing commands:', error);
   }
 }
 
+async function handleSubcommand(subcommand: any): Promise<void> {
+  // Get user inputs for the subcommand's options
+  const answers = subcommand.options ? await processOptions(subcommand.options) : {};
+
+  // Determine how to run the commands
+  if (Array.isArray(subcommand.executeCommands)) {
+    // If executeParallel is true, run in parallel, otherwise sequential
+    let shouldRunParallel = !!subcommand.executeParallel;
+
+    // If requireExecutionChoice is true, ask the user for execution preference
+    if (subcommand.requireExecutionChoice) {
+      const { runInParallel } = await inquirer.prompt([{
+        type: 'confirm',
+        name: 'runInParallel',
+        message: 'Run commands in parallel?',
+        default: shouldRunParallel
+      }]);
+      shouldRunParallel = runInParallel;
+    }
+
+    await runCommands(subcommand.executeCommands, answers, shouldRunParallel);
+  } else if (typeof subcommand.execute === 'object') {
+    // Dynamic command based on answer - for backward compatibility
+    const commandKey = answers[Object.keys(answers)[0]];
+    if (subcommand.execute[commandKey]) {
+      await runCommand(subcommand.execute[commandKey], answers);
+    } else {
+      console.error(`No command defined for ${commandKey}`);
+    }
+  } else if (typeof subcommand.execute === 'string') {
+    // Legacy single command
+    await runCommand(subcommand.execute, answers);
+  }
+
+  // Handle post execution if needed
+  if (subcommand.postExecute) {
+    console.log('Running post-execution tasks...');
+    if (typeof subcommand.postExecute === 'string') {
+      await runCommand(subcommand.postExecute, answers);
+    } else if (Array.isArray(subcommand.postExecuteCommands)) {
+      await runCommands(
+        subcommand.postExecuteCommands,
+        answers,
+        subcommand.postExecuteParallel || false
+      );
+    }
+  }
+}
+
+async function handleCommand(command: any): Promise<void> {
+  if (command.subcommands && command.subcommands.length > 0) {
+    // Handle commands with subcommands
+    const { subcommandType } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'subcommandType',
+        message: `Select ${command.name} operation:`,
+        choices: command.subcommands.map((sub: any) => sub.name)
+      }
+    ]);
+
+    const selectedSubcommand = command.subcommands.find(
+      (sub: any) => sub.name === subcommandType
+    );
+
+    if (selectedSubcommand) {
+      await handleSubcommand(selectedSubcommand);
+    }
+  } else {
+    // Get user inputs for the command's options
+    const answers = command.options ? await processOptions(command.options) : {};
+
+    // Determine execution method
+    if (Array.isArray(command.executeCommands)) {
+      let shouldRunParallel = !!command.executeParallel;
+
+      if (command.requireExecutionChoice) {
+        const { runInParallel } = await inquirer.prompt([{
+          type: 'confirm',
+          name: 'runInParallel',
+          message: 'Run commands in parallel?',
+          default: shouldRunParallel
+        }]);
+        shouldRunParallel = runInParallel;
+      }
+
+      await runCommands(command.executeCommands, answers, shouldRunParallel);
+    } else if (command.execute) {
+      // Legacy single command format
+      await runCommand(command.execute, answers);
+    }
+  }
+}
+
+async function selectConfigFile(): Promise<string> {
+  // Find all JSON and YAML files in the data directory
+  const dataDir = path.join(__dirname, '../data');
+  const files = fs.readdirSync(dataDir).filter(file =>
+    ['.json', '.yml', '.yaml'].includes(path.extname(file).toLowerCase())
+  );
+
+  if (files.length === 0) {
+    console.error('No config files found in the data directory.');
+    process.exit(1);
+  }
+
+  let configPath;
+
+  if (files.length === 1) {
+    configPath = path.join(dataDir, files[0]);
+  } else {
+    const { selectedFile } = await inquirer.prompt([{
+      type: 'list',
+      name: 'selectedFile',
+      message: 'Select a configuration file:',
+      choices: files
+    }]);
+    configPath = path.join(dataDir, selectedFile);
+  }
+
+  return configPath;
+}
+
 async function main(): Promise<void> {
-  const config = loadCommands();
+  // Allow user to select which config file to use
+  const configPath = await selectConfigFile();
+  const config = loadCommands(configPath);
   const commands = config.commands;
+
+  if (!commands || commands.length === 0) {
+    console.log('No commands defined in the configuration file.');
+    return;
+  }
 
   // Build the main menu from the command configuration
   const { commandType } = await inquirer.prompt([
@@ -100,37 +278,13 @@ async function main(): Promise<void> {
   const selectedCommand = commands.find((cmd: any) => cmd.name === commandType);
 
   if (selectedCommand) {
-    if (selectedCommand.subcommands) {
-      // Handle commands with subcommands
-      const { subcommandType } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'subcommandType',
-          message: `Select ${selectedCommand.name} operation:`,
-          choices: selectedCommand.subcommands.map((sub: any) => sub.name)
-        }
-      ]);
-
-      const selectedSubcommand = selectedCommand.subcommands.find(
-          (sub: any) => sub.name === subcommandType
-      );
-
-      if (selectedSubcommand) {
-        await handleSubcommand(selectedSubcommand);
-      }
-    } else if (selectedCommand.options) {
-      // Handle commands with direct options
-      const answers = await processOptions(selectedCommand.options);
-      await runCommand(selectedCommand.execute, answers);
-    } else if (selectedCommand.execute) {
-      // Handle commands with no options
-      await runCommand(selectedCommand.execute, {});
-    }
+    await handleCommand(selectedCommand);
   } else {
     console.error(`Command ${commandType} not found in configuration`);
   }
 }
 
+// Use function call to start the program
 main().catch(error => {
   console.error('An error occurred:', error);
 });

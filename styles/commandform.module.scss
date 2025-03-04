@@ -82,3 +82,48 @@
     background: #c53030;
   }
 }
+
+.itemContainer {
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.executeCommandsList {
+  margin-bottom: 16px;
+}
+
+.executeCommandItem {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: center;
+
+  .dangerButton {
+    margin-left: 8px;
+  }
+}
+
+.checkboxContainer {
+  margin-bottom: 16px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.checkbox {
+  margin-right: 8px;
+}
+
+.helpText {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.actionButtons {
+  margin-top: 16px;
+}
