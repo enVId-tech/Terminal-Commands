@@ -18,18 +18,18 @@ The program offers:
 - Parallel or sequential command execution with user confirmation
 - Comprehensive error handling and command output display
 - Perfect for creating custom dev workflows, automating repetitive tasks, or building
-
+--------------
 Tutorial
 ===================
-This tutorial will guide you through the process of creating a simple command workflow using the Terminal Commands Program. We will define a command that prints a message to the console and then prompts the user for their name. The user's name will be displayed in the final output.
+This tutorial will guide you through the process of creating a simple command workflow using the Terminal Commands Program.
 
 Step 1: Install the Program
 ----------------------------
 To install the program, first go to the CLI folder on this GitHub and download the `main.ts` folder
 
-As well, download the `package.json` file and the `tsconfig.json` file in the root directory and place them in the same directory as the `main.ts` file.
+Place the `main.ts` file in a directory of your choice. As well, download the `package.json` file and the `tsconfig.json` file in the root directory and place them in the same directory as the `main.ts` file.
 
-Place the `main.ts` file in a directory of your choice. Open a terminal window in that directory and run the following command to install the necessary dependencies
+Open a terminal window in that directory and run the following command to install the necessary dependencies:
 
 ```bash
 npm install
@@ -39,9 +39,9 @@ NOTE: Make sure you have LATEST Node.js installed on your machine before running
 
 Step 2: Configuration file creation
 -----------------------------------
-Inside of main.ts, make sure to change the ``dataDirPath`` variable to the path of the configuration file you want to use.
+Inside of main.ts, make sure to change the ``dataDirPath`` variable to the path of the configuration file you want to use (..data is the default).
 
-Go to the website https://commands.etran.dev/ and create a configuration file that looks like this:
+Go to the website https://commands.etran.dev/ and create a configuration file.
 
 Hint: It is recommended to read the documentation on the website beforehand AND use the YAML format for the configuration file.
 
