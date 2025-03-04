@@ -1,7 +1,8 @@
 // app/layout.tsx
 import { Inter } from 'next/font/google';
+import {NextFont} from "next/dist/compiled/@next/font";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter: NextFont = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: 'CLI Command Builder',

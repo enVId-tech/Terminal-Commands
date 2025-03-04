@@ -344,6 +344,8 @@ $error-color: #e74c3c;
   margin-bottom: 24px;
   @include box-shadow;
   min-height: 300px;
+  height: 100%;
+
 }
 
 .description {
@@ -443,7 +445,7 @@ $error-color: #e74c3c;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  height: 90%;
   min-height: 300px;
   color: $text-light;
   text-align: center;

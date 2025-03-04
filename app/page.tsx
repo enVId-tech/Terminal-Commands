@@ -563,7 +563,7 @@ export default function Home() {
                       Create Your First Command
                     </button>
                     <p className={styles.emptyStateHelp}>
-                      You can also load example configurations using the "Load Example Config" button above.
+                      You can also load example configurations using the &#34;Load Example Config&#34; button above.
                     </p>
                   </div>
               ) : (
