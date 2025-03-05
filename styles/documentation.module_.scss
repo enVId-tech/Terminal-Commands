@@ -1,0 +1,430 @@
+// styles/documentation.module_.scss
+
+// Variables
+$primary-color: #3182ce;
+$secondary-color: #2c5282;
+$accent-color: #4299e1;
+$text-color: #2d3748;
+$light-text: #4a5568;
+$background-color: #f8fafc;
+$card-bg: white;
+$border-color: #e2e8f0;
+$danger-color: #e53e3e;
+$success-color: #38a169;
+$code-bg: #2d3748;
+$code-color: #edf2f7;
+$header-height: 64px;
+$sidebar-width: 240px;
+$border-radius: 6px;
+$box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+// Mixins
+@mixin card {
+  background-color: $card-bg;
+  border-radius: $border-radius;
+  box-shadow: $box-shadow;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@mixin button($bg-color, $text-color) {
+  background-color: $bg-color;
+  color: $text-color;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+// Main container
+.documentationContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  color: $text-color;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+}
+
+// Header
+.docHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid $border-color;
+
+  h1 {
+    margin: 0;
+    font-size: 2rem;
+    color: $secondary-color;
+  }
+}
+
+.backButton {
+  @include button($primary-color, white);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+
+  &:before {
+    content: "←";
+    margin-right: 0.5rem;
+  }
+}
+
+// Tab navigation
+.tabNavigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+
+  button {
+    @include button(transparent, $text-color);
+    border: 1px solid $border-color;
+    padding: 0.75rem 1rem;
+    flex-grow: 1;
+
+    &:hover {
+      border-color: $accent-color;
+    }
+
+    &[data-active="true"] {
+      background-color: $primary-color;
+      color: white;
+      border-color: $primary-color;
+    }
+  }
+}
+
+// Common section styling
+.overviewSection,
+.hierarchySection,
+.executionSection,
+.uiSection,
+.optionsSection,
+.structureSection,
+.examplesSection,
+.troubleshootingSection {
+  h2 {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+    color: $secondary-color;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid $border-color;
+  }
+
+  h3 {
+    font-size: 1.4rem;
+    margin: 1.5rem 0 1rem;
+    color: $primary-color;
+  }
+
+  h4 {
+    font-size: 1.1rem;
+    margin: 1.2rem 0 0.8rem;
+    color: $text-color;
+  }
+}
+
+// Code blocks
+.codeBlock {
+  background-color: $code-bg;
+  color: $code-color;
+  border-radius: $border-radius;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', 'Andale Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+
+  code {
+    display: block;
+    tab-size: 2;
+  }
+}
+
+// Card layouts
+.introCard,
+.featuresCard,
+.quickStartCard,
+.definitionCard,
+.exampleCard,
+.issueCard {
+  @include card;
+}
+
+// Two-column layouts
+.hierarchyDefinition,
+.formatComparison,
+.executionModes,
+.optionTypeGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.optionTypeGrid {
+  @media (min-width: 992px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+// Tables
+.propertyTable,
+.solutionsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+
+  th, td {
+    padding: 0.75rem 1rem;
+    border: 1px solid $border-color;
+    text-align: left;
+  }
+
+  th {
+    background-color: lighten($primary-color, 45%);
+    font-weight: 600;
+    color: $secondary-color;
+  }
+
+  tr:nth-child(even) {
+    background-color: lighten($border-color, 5%);
+  }
+}
+
+// Lists
+.troubleshootingList,
+.tipsList,
+.practicesList {
+  padding-left: 1.5rem;
+
+  li {
+    margin-bottom: 0.75rem;
+
+    strong {
+      color: $secondary-color;
+    }
+  }
+}
+
+// Highlighted UI elements
+.highlightedExample {
+  border: 2px dashed $accent-color;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: $border-radius;
+  background-color: lighten($accent-color, 35%);
+}
+
+// Specific section styling
+.hierarchySection {
+  .hierarchyCheatsheet {
+    @include card;
+    margin-top: 2rem;
+  }
+}
+
+.executionSection {
+  .executionDiagram,
+  .inheritanceDiagram {
+    @include card;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+
+  .executionMode {
+    @include card;
+    height: 100%;
+  }
+
+  .runtimeChoice {
+    @include card;
+    margin-top: 1.5rem;
+  }
+}
+
+.optionsSection {
+  .optionCard {
+    @include card;
+    height: 100%;
+
+    h4 {
+      margin-top: 0;
+    }
+  }
+
+  .validationExamples,
+  .defaultExamples,
+  .usageExamples {
+    margin: 1.5rem 0;
+  }
+}
+
+.examplesSection {
+  .exampleCard {
+    @include card;
+
+    .codeBlock {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  }
+
+  .modifyingExamples {
+    @include card;
+    margin-top: 2rem;
+    background-color: lighten($accent-color, 38%);
+  }
+}
+
+.troubleshootingSection {
+  .issueCard {
+    margin-bottom: 2rem;
+
+    .issueSolution {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+
+      @media (min-width: 768px) {
+        flex-direction: row;
+      }
+
+      .issueDescription {
+        flex: 1;
+      }
+
+      .solutionSteps {
+        flex: 2;
+      }
+    }
+  }
+
+  .debuggingTips {
+    @include card;
+    background-color: lighten($success-color, 55%);
+  }
+}
+
+// Helper classes
+.helpText {
+  background-color: lighten($border-color, 5%);
+  padding: 0.75rem;
+  border-left: 4px solid $accent-color;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+
+  code {
+    background-color: rgba(white, 0.5);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-family: monospace;
+  }
+}
+
+// Active tab styling
+.tab {
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  font-weight: 500;
+
+  &:hover {
+    color: $primary-color;
+  }
+
+  &.active {
+    color: $primary-color;
+    border-bottom-color: $primary-color;
+  }
+}
+
+// Tab content styling
+.tabContent {
+  padding: 1.5rem 0;
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .documentationContainer {
+    padding: 1rem;
+  }
+
+  .tabNavigation {
+    flex-wrap: wrap;
+
+    button {
+      flex-basis: calc(50% - 0.5rem);
+    }
+  }
+
+  .docHeader {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+}
+
+// Print styles
+@media print {
+  .documentationContainer {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .docHeader {
+    .backButton {
+      display: none;
+    }
+  }
+
+  .tabNavigation {
+    display: none;
+  }
+
+  .overviewSection,
+  .hierarchySection,
+  .executionSection,
+  .uiSection,
+  .optionsSection,
+  .structureSection,
+  .examplesSection,
+  .troubleshootingSection {
+    display: block !important;
+    page-break-after: always;
+  }
+
+  .codeBlock {
+    border: 1px solid $border-color;
+    background-color: lighten($border-color, 5%);
+    color: $text-color;
+  }
+}

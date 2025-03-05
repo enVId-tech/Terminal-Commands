@@ -12,7 +12,7 @@ import yaml from 'js-yaml';
 const execPromise = promisify(exec);
 
 // CHANGE THIS
-const dataDirPath: string = '../data';
+const dataDirPath: string = '../data'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
