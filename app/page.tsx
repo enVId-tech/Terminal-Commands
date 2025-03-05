@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import CommandForm from './_components/CommandForm';
-import { Command, CommandConfig } from './types/commands';
+import {Command, CommandConfig, CommandOption, SubCommand} from './types/commands';
 import styles from '@/styles/home.module.scss';
 import { useRouter } from 'next/navigation';
 import yaml from 'js-yaml';
@@ -23,6 +23,7 @@ export default function Home() {
   const [rawConfigValid, setRawConfigValid] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const [highlightedElement, setHighlightedElement] = useState<string | null>(null);
 
   useEffect(() => {
     const loadCommands = async () => {
@@ -49,6 +50,54 @@ export default function Home() {
 
     loadCommands();
   }, []);
+
+// In your page.tsx file, modify the navigateToElement function
+  const navigateToElement = (commandIndex: number, path: string[] = []) => {
+    // First, make sure we're in the editor tab
+    setActiveTab('editor');
+
+    // Select the command
+    selectCommand(commandIndex);
+
+    console.log(`Navigating to command #${commandIndex} with path:`, path);
+
+    // Set the appropriate tab within the command/subcommand
+    setTimeout(() => {
+      // Find the element based on the path
+      const highlightId = path.length > 0
+          ? `cmd-${commandIndex}-${path.join('-')}`
+          : `cmd-${commandIndex}`;
+
+      console.log(`Looking for element with data-id="${highlightId}"`);
+
+      // Highlight the element
+      setHighlightedElement(highlightId);
+
+      // Print all data-id attributes for debugging
+      console.log("All data-id elements in DOM:",
+          Array.from(document.querySelectorAll('[data-id]'))
+              .map(el => el.getAttribute('data-id')));
+
+      // More debugging
+      setTimeout(() => {
+        const element = document.querySelector(`[data-id="${highlightId}"]`);
+        console.log(`Element found:`, element);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          console.log("Element is visible, scrolling to it");
+
+          // Add a visual flash to make it very obvious
+          element.classList.add(styles.flashHighlight);
+          setTimeout(() => element.classList.remove(styles.flashHighlight), 1000);
+
+          // Remove highlight after a few seconds
+          setTimeout(() => setHighlightedElement(null), 3000);
+        } else {
+          console.log("Element NOT found in DOM!");
+        }
+      }, 500); // Increase timeout to 500ms
+    }, 100); // Increase timeout to 100ms for selection to complete
+  };
 
   const loadExampleCommands = async () => {
     try {
@@ -357,11 +406,83 @@ export default function Home() {
     );
   }
 
-  // Generate selection tree preview for the current configuration
+// Updated renderSelectionTree function
   const renderSelectionTree = () => {
     if (config.commands.length === 0) {
       return <p>No commands defined</p>;
     }
+
+    // Helper function to recursively render subcommands and their nested subcommands
+    const renderSubcommands = (
+        subcommands: SubCommand[],
+        commandIndex: number,
+        parentPath: string[] = []
+    ) => {
+      return (
+          <ul className={styles.subcommandsList}>
+            {subcommands.map((subcmd, subcmdIdx) => {
+              const currentPath = [...parentPath, `subcommand-${subcmdIdx}`];
+              return (
+                  <li key={subcmdIdx} className={styles.subcommandItem}>
+                    <div
+                        className={styles.subcommandNode}
+                        onClick={() => navigateToElement(commandIndex, currentPath)}
+                    >
+                      {subcmd.name}
+                    </div>
+                    {subcmd.options && subcmd.options.length > 0 && (
+                        <ul className={styles.optionsList}>
+                          {subcmd.options.map((opt, optIdx) => {
+                            const optionPath = [...currentPath, `option-${optIdx}`];
+                            return (
+                                <li key={optIdx} className={styles.optionItem}>
+                        <span
+                            className={styles.optionLabel}
+                            onClick={() => navigateToElement(commandIndex, optionPath)}
+                        >
+                          {opt.name || 'Unnamed option'} ({opt.type})
+                        </span>
+                                  {renderOptionDetails(opt)}
+                                </li>
+                            );
+                          })}
+                        </ul>
+                    )}
+                    {subcmd.subcommands && subcmd.subcommands.length > 0 &&
+                        renderSubcommands(subcmd.subcommands, commandIndex, [...currentPath, 'subcommands'])}
+                  </li>
+              );
+            })}
+          </ul>
+      );
+    };
+
+    // Helper function for rendering option details
+    const renderOptionDetails = (opt: CommandOption) => {
+      return (
+          <>
+            {opt.type === 'list' && opt.choices && (
+                <ul className={styles.choicesList}>
+                  {opt.choices.map((choice, choiceIdx) => (
+                      <li key={choiceIdx} className={styles.choiceItem}>
+                        {choice} {opt.default === choice && <span className={styles.defaultBadge}>Default</span>}
+                      </li>
+                  ))}
+                </ul>
+            )}
+            {opt.type === 'confirm' && (
+                <span className={styles.defaultValue}>
+            Default: {opt.default ? 'Yes' : 'No'}
+          </span>
+            )}
+            {opt.type !== 'list' && opt.type !== 'confirm' && opt.default && (
+                <span className={styles.defaultValue}>
+            Default: {opt.default}
+          </span>
+            )}
+          </>
+      );
+    };
 
     return (
         <div className={styles.selectionTree}>
@@ -369,72 +490,29 @@ export default function Home() {
           <ul className={styles.treeList}>
             {config.commands.map((cmd, idx) => (
                 <li key={idx} className={styles.treeItem}>
-                  <div className={styles.treeNode}>{cmd.name}</div>
+                  <div
+                      className={styles.treeNode}
+                      onClick={() => navigateToElement(idx)}
+                  >
+                    {cmd.name}
+                  </div>
                   {cmd.options && cmd.options.length > 0 && (
                       <ul className={styles.optionsList}>
                         {cmd.options.map((opt, optIdx) => (
                             <li key={optIdx} className={styles.optionItem}>
-                              <span className={styles.optionLabel}>{opt.name}</span>
-                              {opt.type === 'list' && opt.choices && (
-                                  <ul className={styles.choicesList}>
-                                    {opt.choices.map((choice, choiceIdx) => (
-                                        <li key={choiceIdx} className={styles.choiceItem}>
-                                          {choice} {opt.default === choice && <span className={styles.defaultBadge}>Default</span>}
-                                        </li>
-                                    ))}
-                                  </ul>
-                              )}
-                              {opt.type === 'confirm' && (
-                                  <span className={styles.defaultValue}>
-                          Default: {opt.default ? 'Yes' : 'No'}
-                        </span>
-                              )}
-                              {(opt.type === 'input' || opt.type === 'number') && opt.default && (
-                                  <span className={styles.defaultValue}>
-                          Default: {opt.default}
-                        </span>
-                              )}
+                    <span
+                        className={styles.optionLabel}
+                        onClick={() => navigateToElement(idx, [`option-${optIdx}`])}
+                    >
+                      {opt.name || 'Unnamed option'} ({opt.type})
+                    </span>
+                              {renderOptionDetails(opt)}
                             </li>
                         ))}
                       </ul>
                   )}
-                  {cmd.subcommands && cmd.subcommands.length > 0 && (
-                      <ul className={styles.subcommandsList}>
-                        {cmd.subcommands.map((subcmd, subIdx) => (
-                            <li key={subIdx} className={styles.subcommandItem}>
-                              <div className={styles.subcommandNode}>{subcmd.name}</div>
-                              {subcmd.options && subcmd.options.length > 0 && (
-                                  <ul className={styles.optionsList}>
-                                    {subcmd.options.map((opt, optIdx) => (
-                                        <li key={optIdx} className={styles.optionItem}>
-                                          <span className={styles.optionLabel}>{opt.name}</span>
-                                          {opt.type === 'list' && opt.choices && (
-                                              <ul className={styles.choicesList}>
-                                                {opt.choices.map((choice, choiceIdx) => (
-                                                    <li key={choiceIdx} className={styles.choiceItem}>
-                                                      {choice} {opt.default === choice && <span className={styles.defaultBadge}>Default</span>}
-                                                    </li>
-                                                ))}
-                                              </ul>
-                                          )}
-                                          {opt.type === 'confirm' && (
-                                              <span className={styles.defaultValue}>
-                                                Default: {opt.default ? 'Yes' : 'No'}
-                                              </span>
-                                          )}
-                                          {(opt.type === 'input' || opt.type === 'number') && opt.default && (
-                                              <span className={styles.defaultValue}>
-                                                Default: {opt.default}
-                                              </span>
-                                          )}
-                                        </li>
-                                    ))}
-                                  </ul>
-                              )}
-                            </li>
-                        ))}
-                      </ul>
-                  )}
+                  {cmd.subcommands && cmd.subcommands.length > 0 &&
+                      renderSubcommands(cmd.subcommands, idx, ["subcommands"])}
                 </li>
             ))}
           </ul>
@@ -514,6 +592,9 @@ export default function Home() {
             <button className={styles.button} onClick={togglePreview}>
               {showPreview ? 'Hide' : 'Show'} Selection Tree
             </button>
+            <button className={styles.button} onClick={() => setConfig({ commands: [] })}>
+              Clear Selection
+            </button>
           </div>
 
         {/*  <div className={styles.savePath}>*/}
@@ -588,8 +669,10 @@ export default function Home() {
                           <div className={styles.commandBox}>
                             <CommandForm
                                 command={config.commands[selectedCommand]}
+                                commandId={`cmd-${selectedCommand}`}
                                 onUpdate={(updatedCommand) => updateCommand(selectedCommand, updatedCommand)}
                                 onRemove={() => removeCommand(selectedCommand)}
+                                highlightedElement={highlightedElement}
                             />
                           </div>
                       ) : (

@@ -54,20 +54,27 @@ async function runCommand(commandTemplate: string, answers: Record<string, unkno
   console.log(`Executing: ${command}`);
 
   return new Promise((resolve, reject) => {
+    // Parse the command and arguments
     const [cmd, ...args] = command.split(' ');
 
     // Handle npx/npm commands on Windows
     const isWindows = process.platform === 'win32';
     const executable = isWindows && (cmd === 'npx' || cmd === 'npm') ? `${cmd}.cmd` : cmd;
 
+    // Try using shell:true for all platforms to resolve path issues
     const childProcess = spawn(executable, args, {
       stdio: 'inherit',
-      shell: isWindows, // Use shell on Windows
-      env: process.env
+      shell: true, // Use shell on all platforms for better path resolution
+      env: {...process.env}
     });
 
     childProcess.on('error', (err) => {
-      reject(new Error(`Failed to start command: ${err.message}`));
+      console.error(`Command failed to start: ${err.message}`);
+      if (err.message.includes('PRN')) {
+        console.error('This may be a Windows device access issue. Try running as administrator.');
+      }
+      // Resolve anyway to continue with other commands
+      resolve();
     });
 
     childProcess.on('close', (code) => {
@@ -75,7 +82,9 @@ async function runCommand(commandTemplate: string, answers: Record<string, unkno
         console.log('Command completed successfully!');
         resolve();
       } else {
-        reject(new Error(`Command failed with code ${code}`));
+        console.error(`Command exited with code ${code}`);
+        // Resolve anyway to continue with other commands
+        resolve();
       }
     });
   });
@@ -117,9 +126,9 @@ async function runCommands(commandTemplates: string[], answers: any, runParallel
       });
 
       await Promise.all(
-        commandTemplates
-          .filter(cmd => cmd && cmd.trim() !== '')
-          .map(commandTemplate => runCommand(commandTemplate, answers))
+          commandTemplates
+              .filter(cmd => cmd && cmd.trim() !== '')
+              .map(commandTemplate => runCommand(commandTemplate, answers))
       );
 
       console.log('All parallel commands completed');
@@ -143,13 +152,17 @@ async function runCommands(commandTemplates: string[], answers: any, runParallel
   }
 }
 
-async function handleSubcommand(subcommand: any): Promise<void> {
-  // Get user inputs for the subcommand's options
-  const answers = subcommand.options ? await processOptions(subcommand.options) : {};
+async function handleSubcommand(subcommand: any, parentAnswers: Record<string, unknown> = {}): Promise<void> {
+  console.log(`Processing subcommand: ${subcommand.name}`);
 
-  // Determine how to run the commands
-  if (Array.isArray(subcommand.executeCommands)) {
-    // If executeParallel is true, run in parallel, otherwise sequential
+  // Get user inputs for the subcommand's options
+  const subcommandAnswers = subcommand.options ? await processOptions(subcommand.options) : {};
+
+  // Combine with parent answers (for variable access across levels)
+  const answers = { ...parentAnswers, ...subcommandAnswers };
+
+  // First, execute this subcommand's commands (if any)
+  if (Array.isArray(subcommand.executeCommands) && subcommand.executeCommands.length > 0) {
     let shouldRunParallel = !!subcommand.executeParallel;
 
     // If requireExecutionChoice is true, ask the user for execution preference
@@ -172,67 +185,87 @@ async function handleSubcommand(subcommand: any): Promise<void> {
     } else {
       console.error(`No command defined for ${commandKey}`);
     }
-  } else if (typeof subcommand.execute === 'string') {
+  } else if (typeof subcommand.execute === 'string' && subcommand.execute) {
     // Legacy single command
     await runCommand(subcommand.execute, answers);
   }
 
+  // Then, check if this subcommand has nested subcommands
+  if (subcommand.subcommands && subcommand.subcommands.length > 0) {
+    // Handle nested subcommands
+    const { nestedSubcommandType } = await inquirer.prompt([{
+      type: 'list',
+      name: 'nestedSubcommandType',
+      message: `Select ${subcommand.name} operation:`,
+      choices: subcommand.subcommands.map((sub: any) => sub.name)
+    }]);
+
+    const selectedNestedSubcommand = subcommand.subcommands.find(
+        (sub: any) => sub.name === nestedSubcommandType
+    );
+
+    if (selectedNestedSubcommand) {
+      // Recursively handle the selected nested subcommand with the current answers passed down
+      await handleSubcommand(selectedNestedSubcommand, answers);
+    }
+  }
+
   // Handle post execution if needed
-  if (subcommand.postExecute) {
+  if (subcommand.postExecute || subcommand.postExecuteCommands) {
     console.log('Running post-execution tasks...');
     if (typeof subcommand.postExecute === 'string') {
       await runCommand(subcommand.postExecute, answers);
     } else if (Array.isArray(subcommand.postExecuteCommands)) {
       await runCommands(
-        subcommand.postExecuteCommands,
-        answers,
-        subcommand.postExecuteParallel || false
+          subcommand.postExecuteCommands,
+          answers,
+          subcommand.postExecuteParallel || false
       );
     }
   }
 }
 
 async function handleCommand(command: any): Promise<void> {
+  // Get user inputs for the command's options
+  const answers = command.options ? await processOptions(command.options) : {};
+
+  // First, execute this command's commands if defined
+  if (Array.isArray(command.executeCommands) && command.executeCommands.length > 0) {
+    let shouldRunParallel = !!command.executeParallel;
+
+    if (command.requireExecutionChoice) {
+      const { runInParallel } = await inquirer.prompt([{
+        type: 'confirm',
+        name: 'runInParallel',
+        message: 'Run commands in parallel?',
+        default: shouldRunParallel
+      }]);
+      shouldRunParallel = runInParallel;
+    }
+
+    await runCommands(command.executeCommands, answers, shouldRunParallel);
+  } else if (command.execute) {
+    // Legacy single command format
+    await runCommand(command.execute, answers);
+  }
+
+  // Then, check if this command has subcommands
   if (command.subcommands && command.subcommands.length > 0) {
     // Handle commands with subcommands
-    const { subcommandType } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'subcommandType',
-        message: `Select ${command.name} operation:`,
-        choices: command.subcommands.map((sub: any) => sub.name)
-      }
-    ]);
+    const { subcommandType } = await inquirer.prompt([{
+      type: 'list',
+      name: 'subcommandType',
+      message: `Select ${command.name} operation:`,
+      choices: command.subcommands.map((sub: any) => sub.name)
+    }]);
 
     const selectedSubcommand = command.subcommands.find(
-      (sub: any) => sub.name === subcommandType
+        (sub: any) => sub.name === subcommandType
     );
 
     if (selectedSubcommand) {
-      await handleSubcommand(selectedSubcommand);
-    }
-  } else {
-    // Get user inputs for the command's options
-    const answers = command.options ? await processOptions(command.options) : {};
-
-    // Determine execution method
-    if (Array.isArray(command.executeCommands)) {
-      let shouldRunParallel = !!command.executeParallel;
-
-      if (command.requireExecutionChoice) {
-        const { runInParallel } = await inquirer.prompt([{
-          type: 'confirm',
-          name: 'runInParallel',
-          message: 'Run commands in parallel?',
-          default: shouldRunParallel
-        }]);
-        shouldRunParallel = runInParallel;
-      }
-
-      await runCommands(command.executeCommands, answers, shouldRunParallel);
-    } else if (command.execute) {
-      // Legacy single command format
-      await runCommand(command.execute, answers);
+      // Handle the subcommand with the command-level answers passed down
+      await handleSubcommand(selectedSubcommand, answers);
     }
   }
 }
@@ -241,7 +274,7 @@ async function selectConfigFile(): Promise<string> {
   // Find all JSON and YAML files in the data directory
   const dataDir = path.join(__dirname, dataDirPath);
   const files = fs.readdirSync(dataDir).filter(file =>
-    ['.json', '.yml', '.yaml'].includes(path.extname(file).toLowerCase())
+      ['.json', '.yml', '.yaml'].includes(path.extname(file).toLowerCase())
   );
 
   if (files.length === 0) {

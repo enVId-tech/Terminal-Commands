@@ -8,8 +8,10 @@ import styles from '../../styles/commandform.module.scss';
 
 interface CommandFormProps {
   command: Command;
+  commandId: string;
   onUpdate: (command: Command) => void;
   onRemove: () => void;
+  highlightedElement?: string | null;
 }
 
 // Extend Command interface for internal component use
@@ -18,7 +20,8 @@ interface EnhancedCommand extends Command {
   executeParallel?: boolean;
 }
 
-const CommandForm: React.FC<CommandFormProps> = ({ command, onUpdate, onRemove }) => {
+const CommandForm: React.FC<CommandFormProps> = (props) => {
+  const { command, commandId, onUpdate, onRemove, highlightedElement } = props;
   const [activeTab, setActiveTab] = useState<'options' | 'subcommands' | 'execute'>('options');
   const enhancedCommand = command as EnhancedCommand;
 
@@ -70,7 +73,7 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, onUpdate, onRemove }
     const subcommands = command.subcommands ? [...command.subcommands] : [];
     subcommands.push({
       name: 'New Subcommand',
-      execute: ''
+      executeCommands: ['']
     });
     onUpdate({ ...command, subcommands });
   };
@@ -113,156 +116,162 @@ const CommandForm: React.FC<CommandFormProps> = ({ command, onUpdate, onRemove }
     } as EnhancedCommand);
   };
 
+  // Check if command has subcommands
+  const hasSubcommands = command.subcommands && command.subcommands.length > 0;
+
   return (
-    <div className={styles.commandForm}>
-      <div className={styles.formSection}>
-        <label className={styles.sectionTitle}>
-          Command Name:
-        </label>
-        <input
-          type="text"
-          value={command.name}
-          onChange={handleNameChange}
-          placeholder="e.g. Build"
-          className={styles.nameInput}
-        />
-      </div>
-
-      <div className={styles.tabs}>
-        <div
-          onClick={() => setActiveTab('options')}
-          className={`${styles.tab} ${activeTab === 'options' ? styles.active : ''}`}
-        >
-          Options
+      <div className={styles.commandForm}>
+        <div className={styles.formSection}>
+          <label className={styles.sectionTitle}>
+            Command Name:
+          </label>
+          <input
+              type="text"
+              value={command.name}
+              onChange={handleNameChange}
+              placeholder="e.g. Build"
+              className={styles.nameInput}
+          />
         </div>
-        <div
-          onClick={() => setActiveTab('subcommands')}
-          className={`${styles.tab} ${activeTab === 'subcommands' ? styles.active : ''}`}
-        >
-          Subcommands
-        </div>
-        <div
-          onClick={() => setActiveTab('execute')}
-          className={`${styles.tab} ${activeTab === 'execute' ? styles.active : ''}`}
-        >
-          Execute
-        </div>
-      </div>
 
-      <div className={styles.tabContent}>
-        {activeTab === 'options' && (
-          <div className={styles.formSection}>
-            {command.options?.map((option, index) => (
-              <div
-                key={`option-${index}`}
-                className={styles.itemContainer}
-              >
-                <OptionForm
-                  option={option}
-                  onUpdate={(updatedOption) => updateOption(index, updatedOption)}
-                  onRemove={() => removeOption(index)}
-                />
-              </div>
-            ))}
-
-            <button onClick={addOption} className={styles.button}>
-              Add Option
-            </button>
+        <div className={styles.tabs}>
+          <div
+              onClick={() => setActiveTab('options')}
+              className={`${styles.tab} ${activeTab === 'options' ? styles.active : ''}`}
+          >
+            Options
           </div>
-        )}
-
-        {activeTab === 'subcommands' && (
-          <div className={styles.formSection}>
-            {command.subcommands?.map((subcommand, index) => (
-              <div
-                key={`subcommand-${index}`}
-                className={styles.itemContainer}
-              >
-                <SubCommandForm
-                  subcommand={subcommand}
-                  onUpdate={(updatedSubcommand) => updateSubcommand(index, updatedSubcommand)}
-                  onRemove={() => removeSubcommand(index)}
-                />
-              </div>
-            ))}
-
-            <button onClick={addSubcommand} className={styles.button}>
-              Add Subcommand
-            </button>
+          <div
+              onClick={() => setActiveTab('subcommands')}
+              className={`${styles.tab} ${activeTab === 'subcommands' ? styles.active : ''}`}
+          >
+            Subcommands
           </div>
-        )}
+          <div
+              onClick={() => setActiveTab('execute')}
+              className={`${styles.tab} ${activeTab === 'execute' ? styles.active : ''}`}
+          >
+            Execute
+          </div>
+        </div>
 
-        {activeTab === 'execute' && (
-          <div className={styles.formSection}>
-            <label className={styles.sectionTitle}>
-              Execute Commands:
-            </label>
+        <div className={styles.tabContent}>
+          {activeTab === 'options' && (
+              <div className={styles.formSection}>
+                {command.options?.map((option, index) => (
+                    <div
+                        key={`option-${index}`}
+                        className={`${styles.itemContainer} ${highlightedElement === `${commandId}-option-${index}` ? styles.highlighted : ''}`}
+                        data-id={`${commandId}-option-${index}`}
+                    >
+                      <OptionForm
+                          option={option}
+                          optionId={`${commandId}-option-${index}`}
+                          onUpdate={(updatedOption) => updateOption(index, updatedOption)}
+                          onRemove={() => removeOption(index)}
+                          highlightedElement={highlightedElement}
+                      />
+                    </div>
+                ))}
 
-            <div className={styles.checkboxContainer}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={enhancedCommand.executeParallel || false}
-                  onChange={toggleExecuteParallel}
-                  className={styles.checkbox}
-                  disabled={command.subcommands && command.subcommands.length > 0}
-                />
-                <span>Execute commands in parallel</span>
-              </label>
-            </div>
+                <button onClick={addOption} className={styles.button}>
+                  Add Option
+                </button>
+              </div>
+          )}
 
-            <div className={styles.executeCommandsList}>
-              {(enhancedCommand.executeCommands || []).map((cmd, index) => (
-                <div
-                  key={`cmd-${index}`}
-                  className={styles.executeCommandItem}
-                >
-                  <input
-                    type="text"
-                    value={cmd}
-                    onChange={(e) => updateExecuteCommand(index, e.target.value)}
-                    placeholder="npm run build -- --env={{buildType}}"
-                    className={styles.nameInput}
-                    disabled={command.subcommands && command.subcommands.length > 0}
-                  />
-                  <button
-                    onClick={() => removeExecuteCommand(index)}
-                    className={styles.dangerButton}
-                    disabled={command.subcommands && command.subcommands.length > 0}
-                  >
-                    Remove
-                  </button>
+          {activeTab === 'subcommands' && (
+              <div className={styles.formSection}>
+                {command.subcommands?.map((subcommand, index) => (
+                    <div
+                        key={`subcommand-${index}`}
+                        className={`${styles.itemContainer} ${highlightedElement === `${commandId}-subcommands-subcommand-${index}` ? styles.highlighted : ''}`}
+                        data-id={`${commandId}-subcommands-subcommand-${index}`}
+                    >
+                      <SubCommandForm
+                          subcommand={subcommand}
+                          subcommandId={`${commandId}-subcommands-subcommand-${index}`}
+                          onUpdate={(updatedSubcommand) => updateSubcommand(index, updatedSubcommand)}
+                          onRemove={() => removeSubcommand(index)}
+                          highlightedElement={highlightedElement}
+                      />
+                    </div>
+                ))}
+
+                <button onClick={addSubcommand} className={styles.button}>
+                  Add Subcommand
+                </button>
+              </div>
+          )}
+
+          {activeTab === 'execute' && (
+              <div className={styles.formSection}>
+                <label className={styles.sectionTitle}>
+                  Execute Commands:
+                </label>
+
+                <div className={styles.checkboxContainer}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                        type="checkbox"
+                        checked={enhancedCommand.executeParallel || false}
+                        onChange={toggleExecuteParallel}
+                        className={styles.checkbox}
+                    />
+                    <span>Execute commands in parallel</span>
+                  </label>
                 </div>
-              ))}
-            </div>
 
-            <button
-              onClick={addExecuteCommand}
-              className={styles.button}
-              disabled={command.subcommands && command.subcommands.length > 0}
-            >
-              Add Command
-            </button>
+                <div className={styles.executeCommandsList}>
+                  {(enhancedCommand.executeCommands || []).map((cmd, index) => (
+                      <div
+                          key={`cmd-${index}`}
+                          className={`${styles.executeCommandItem} ${highlightedElement === `${commandId}-execute-${index}` ? styles.highlighted : ''}`}
+                          data-id={`${commandId}-execute-${index}`}
+                      >
+                        <input
+                            type="text"
+                            value={cmd}
+                            onChange={(e) => updateExecuteCommand(index, e.target.value)}
+                            placeholder="npm run build -- --env={{buildType}}"
+                            className={styles.nameInput}
+                        />
+                        <button
+                            onClick={() => removeExecuteCommand(index)}
+                            className={styles.dangerButton}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                  ))}
+                </div>
 
-            {command.subcommands && command.subcommands.length > 0 && (
-              <div className={styles.helpText}>
-                Execute is disabled when subcommands exist
+                <button
+                    onClick={addExecuteCommand}
+                    className={styles.button}
+                >
+                  Add Command
+                </button>
+
+                {hasSubcommands && (
+                    <div className={styles.helpText}>
+                      These commands will run before executing subcommands
+                    </div>
+                )}
+
+                <div className={styles.helpText}>
+                  Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code>
+                </div>
               </div>
-            )}
+          )}
+        </div>
 
-            <div className={styles.helpText}>
-              Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code>
-            </div>
-          </div>
-        )}
+        <div className={styles.actionButtons}>
+          <button onClick={onRemove} className={styles.dangerButton}>
+            Remove Command
+          </button>
+        </div>
       </div>
-
-      <div className={styles.actionButtons}>
-        <button onClick={onRemove} className={styles.dangerButton}>
-          Remove Command
-        </button>
-      </div>
-    </div>
   );
 };
 

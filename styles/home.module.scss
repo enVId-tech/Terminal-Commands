@@ -858,3 +858,64 @@ $error-color: #e74c3c;
     }
   }
 }
+
+.flashHighlight {
+  animation: flash 1s ease;
+}
+
+@keyframes flash {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(255, 165, 0, 0.8); } /* Bright orange flash */
+}
+
+.highlighted {
+  animation: highlight 3s ease;
+  background-color: rgba(255, 215, 0, 0.3);
+  border: 2px solid gold;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+}
+
+@keyframes highlight {
+  0%, 100% {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  20%, 80% {
+    background-color: rgba(255, 215, 0, 0.3);
+    border-color: gold;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+  }
+}
+
+.treeNode, .subcommandNode, .optionLabel {
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #007bff;
+    text-decoration: underline;
+  }
+}
+
+/* Styles for nested tree structure */
+.subcommandsList {
+  margin-left: 20px;
+  border-left: 1px dashed #ccc;
+  padding-left: 10px;
+  list-style: none;
+}
+
+.subcommandNode {
+  font-weight: 500;
+  margin: 2px 0;
+}
+
+/* Nesting levels */
+.subcommandsList .subcommandsList {
+  border-left-color: #aaa;
+}
+
+.subcommandsList .subcommandsList .subcommandsList {
+  border-left-color: #888;
+}

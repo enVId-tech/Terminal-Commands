@@ -127,3 +127,29 @@
 .actionButtons {
   margin-top: 16px;
 }
+
+.highlighted {
+  animation: highlight 3s ease;
+  background-color: rgba(255, 215, 0, 0.3) !important;
+  border: 2px solid gold !important;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.7) !important;
+}
+
+@keyframes highlight {
+  0%, 100% {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  20%, 80% {
+    background-color: rgba(255, 215, 0, 0.3);
+    border-color: gold;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+  }
+}
+
+.itemContainer.highlighted {
+  padding: 8px;
+  margin: 4px 0;
+  border-radius: 4px;
+}

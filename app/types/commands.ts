@@ -30,6 +30,7 @@ export interface SubCommand {
   postExecute?: string; // Legacy support
   postExecuteCommands?: string[];
   postExecuteParallel?: boolean;
+  subcommands?: SubCommand[];
 }
 
 export interface CommandConfig {
