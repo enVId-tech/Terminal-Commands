@@ -166,7 +166,6 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
                     >
                       <OptionForm
                           option={option}
-                          optionId={`${commandId}-option-${index}`}
                           onUpdate={(updatedOption) => updateOption(index, updatedOption)}
                           onRemove={() => removeOption(index)}
                           highlightedElement={highlightedElement}

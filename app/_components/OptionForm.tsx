@@ -5,8 +5,10 @@ import { CommandOption } from '../types/commands';
 
 interface OptionFormProps {
   option: CommandOption;
+  optionId?: string; // Add this prop
   onUpdate: (option: CommandOption) => void;
   onRemove: () => void;
+  highlightedElement?: string | null; // This prop might also be needed based on SubCommandForm usage
 }
 
 const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) => {
