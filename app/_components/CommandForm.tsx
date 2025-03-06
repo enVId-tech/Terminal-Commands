@@ -26,8 +26,7 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
   const { command, commandId, onUpdate, onRemove, highlightedElement } = props;
   const [activeTab, setActiveTab] = useState<'options' | 'subcommands' | 'execute'>('options');
   const enhancedCommand = command as EnhancedCommand;
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-
+  
   // Migrate legacy execute field if needed
   useEffect(() => {
     if (typeof command.execute === 'string' && command.execute && !enhancedCommand.executeCommands) {
@@ -42,7 +41,7 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
         executeCommands: ['']
       } as EnhancedCommand);
     }
-  }, []);
+  }, [command, enhancedCommand.executeCommands, onUpdate]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdate({ ...command, name: e.target.value });
@@ -118,11 +117,8 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
       executeParallel: e.target.checked
     } as EnhancedCommand);
   };
-
-  // Check if command has subcommands
-  const hasSubcommands = command.subcommands && command.subcommands.length > 0;
-
-  const handleDragEnd = (result: any) => {
+  
+  const handleDragEnd = (result) => {
     setIsDragging(false);
 
     const { source, destination, type } = result;
@@ -199,7 +195,6 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
         </div>
         <DragDropContext
             onDragEnd={handleDragEnd}
-            onDragStart={() => setIsDragging(true)}
         >
           <div className={styles.tabContent}>
             {activeTab === 'options' && (
@@ -233,7 +228,11 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
                                         <span className={styles.dragHandle}>⠿</span>
                                       </div>
                                       <OptionForm
-                                          option={option}
+                                          option={option || {
+                                            type: 'input',
+                                            name: '',
+                                            message: ''
+                                          }}
                                           optionId={`${commandId}-option-${index}`}
                                           onUpdate={(updatedOption) => updateOption(index, updatedOption)}
                                           onRemove={() => removeOption(index)}

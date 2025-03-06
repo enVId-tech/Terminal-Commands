@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import OptionForm from './OptionForm';
 import styles from '../../styles/commandform.module.scss';
 import { CommandOption, SubCommand } from "@/app/types/commands";
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
+import { DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd'
 
 interface SubCommandFormProps {
   subcommand: SubCommand;
@@ -25,10 +25,9 @@ interface EnhancedSubcommand extends SubCommand {
 }
 
 const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
-  const { subcommand, subcommandId, onUpdate, onRemove, highlightedElement } = props;
+  const {subcommand, subcommandId, onUpdate, onRemove, highlightedElement} = props;
   const enhancedSubcommand = subcommand as EnhancedSubcommand;
   const [activeTab, setActiveTab] = useState<'options' | 'execute' | 'subcommands'>('options');
-  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   // Migrate legacy execute field if needed
   useEffect(() => {
@@ -47,7 +46,7 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
   }, []);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ ...subcommand, name: e.target.value });
+    onUpdate({...subcommand, name: e.target.value});
   };
 
   // Options management
@@ -58,19 +57,19 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
       name: '',
       message: ''
     });
-    onUpdate({ ...subcommand, options });
+    onUpdate({...subcommand, options});
   };
 
   const updateOption = (index: number, updatedOption: CommandOption) => {
     const options = [...(subcommand.options || [])];
     options[index] = updatedOption;
-    onUpdate({ ...subcommand, options });
+    onUpdate({...subcommand, options});
   };
 
   const removeOption = (index: number) => {
     const options = [...(subcommand.options || [])];
     options.splice(index, 1);
-    onUpdate({ ...subcommand, options });
+    onUpdate({...subcommand, options});
   };
 
   // Execute commands management
@@ -86,13 +85,13 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
   const updateExecuteCommand = (index: number, value: string) => {
     const executeCommands = [...(enhancedSubcommand.executeCommands || [])];
     executeCommands[index] = value;
-    onUpdate({ ...subcommand, executeCommands });
+    onUpdate({...subcommand, executeCommands});
   };
 
   const removeExecuteCommand = (index: number) => {
     const executeCommands = [...(enhancedSubcommand.executeCommands || [])];
     executeCommands.splice(index, 1);
-    onUpdate({ ...subcommand, executeCommands });
+    onUpdate({...subcommand, executeCommands});
   };
 
   const toggleExecuteParallel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,28 +108,28 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
       name: 'New Nested Subcommand',
       executeCommands: ['']
     });
-    onUpdate({ ...subcommand, subcommands });
+    onUpdate({...subcommand, subcommands});
   };
 
   const updateNestedSubcommand = (index: number, updatedSubcommand: SubCommand) => {
     if (!subcommand.subcommands) return;
     const subcommands = [...subcommand.subcommands];
     subcommands[index] = updatedSubcommand;
-    onUpdate({ ...subcommand, subcommands });
+    onUpdate({...subcommand, subcommands});
   };
 
   const removeNestedSubcommand = (index: number) => {
     if (!subcommand.subcommands) return;
     const subcommands = [...subcommand.subcommands];
     subcommands.splice(index, 1);
-    onUpdate({ ...subcommand, subcommands });
+    onUpdate({...subcommand, subcommands});
   };
 
-  // Check if subcommand has nested subcommands
-  const hasNestedSubcommands = subcommand.subcommands && subcommand.subcommands.length > 0;
+  // // Check if subcommand has nested subcommands
+  // const hasNestedSubcommands = subcommand.subcommands && subcommand.subcommands.length > 0;
 
   // Handle drag and drop
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = (result: DropResult<string>) => {
     const { source, destination, type } = result;
 
     // If dropped outside a droppable area or in same position
@@ -206,10 +205,8 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
 
         <DragDropContext
             onDragEnd={(result) => {
-              setIsDragging(false);
               handleDragEnd(result);
             }}
-            onDragStart={() => setIsDragging(true)}
         >
           <div className={styles.tabContent}>
             {activeTab === 'options' && (

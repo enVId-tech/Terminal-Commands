@@ -12,47 +12,53 @@ interface OptionFormProps {
 }
 
 const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) => {
+  const safeOption = option || {
+    type: 'input',
+    name: '',
+    message: ''
+  };
+
   const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onUpdate({ ...option, type: e.target.value as unknown as CommandOption['type'] });
+    onUpdate({ ...safeOption, type: e.target.value as unknown as CommandOption['type'] });
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ ...option, name: e.target.value });
+    onUpdate({ ...safeOption, name: e.target.value });
   };
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ ...option, message: e.target.value });
+    onUpdate({ ...safeOption, message: e.target.value });
   };
 
   const handleDefaultChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (option.type === 'confirm') {
-      onUpdate({ ...option, default: e.target.checked });
+    if (safeOption.type === 'confirm') {
+      onUpdate({ ...safeOption, default: e.target.checked });
     } else {
-      onUpdate({ ...option, default: e.target.value });
+      onUpdate({ ...safeOption, default: e.target.value });
     }
   };
 
   const handleValidateChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdate({ ...option, validate: e.target.value });
+    onUpdate({ ...safeOption, validate: e.target.value });
   };
 
   const addChoice = () => {
-    const choices = Array.isArray(option.choices) ? [...option.choices, ''] : [''];
-    onUpdate({ ...option, choices });
+    const choices = Array.isArray(safeOption.choices) ? [...safeOption.choices] : [];
+    onUpdate({ ...safeOption, choices });
   };
 
   const updateChoice = (index: number, value: string) => {
-    if (!option.choices) return;
-    const updatedChoices = [...option.choices];
+    if (!safeOption.choices) return;
+    const updatedChoices = [...safeOption.choices];
     updatedChoices[index] = value;
-    onUpdate({ ...option, choices: updatedChoices });
+    onUpdate({ ...safeOption, choices: updatedChoices });
   };
 
   const removeChoice = (index: number) => {
-    if (!option.choices) return;
-    const updatedChoices = [...option.choices];
+    if (!safeOption.choices) return;
+    const updatedChoices = [...safeOption.choices];
     updatedChoices.splice(index, 1);
-    onUpdate({ ...option, choices: updatedChoices });
+    onUpdate({ ...safeOption, choices: updatedChoices });
   };
 
   // Common input styles
@@ -78,7 +84,7 @@ const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) =
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>Option Type</label>
           <select
-            value={option.type}
+            value={safeOption.type}
             onChange={handleTypeChange}
             style={{ ...inputStyle }}
           >
@@ -96,7 +102,7 @@ const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) =
           <label style={labelStyle}>Name</label>
           <input
             type="text"
-            value={option.name}
+            value={safeOption.name}
             onChange={handleNameChange}
             placeholder="e.g. fileName"
             style={inputStyle}
@@ -111,30 +117,30 @@ const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) =
         <label style={labelStyle}>Message</label>
         <input
           type="text"
-          value={option.message}
+          value={safeOption.message}
           onChange={handleMessageChange}
           placeholder="Enter prompt message for the user"
           style={inputStyle}
         />
       </div>
 
-      {option.type !== 'list' && option.type !== 'checkbox' && (
+      {safeOption.type !== 'list' && safeOption.type !== 'checkbox' && (
         <div style={{ marginBottom: '12px' }}>
           <label style={labelStyle}>Default Value</label>
-          {option.type === 'confirm' ? (
+          {safeOption.type === 'confirm' ? (
             <div>
               <input
                 type="checkbox"
-                checked={Boolean(option.default)}
+                checked={Boolean(safeOption.default)}
                 onChange={handleDefaultChange}
                 style={{ marginRight: '8px' }}
               />
-              <span>Default: {Boolean(option.default) ? 'Yes' : 'No'}</span>
+              <span>Default: {Boolean(safeOption.default) ? 'Yes' : 'No'}</span>
             </div>
           ) : (
             <input
               type="text"
-              value={option.default?.toString() || ''}
+              value={safeOption.default?.toString() || ''}
               onChange={handleDefaultChange}
               placeholder="Default value"
               style={inputStyle}
@@ -143,10 +149,10 @@ const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) =
         </div>
       )}
 
-      {(option.type === 'list' || option.type === 'checkbox') && (
+      {(safeOption.type === 'list' || safeOption.type === 'checkbox') && (
         <div style={{ marginBottom: '12px' }}>
           <label style={labelStyle}>Choices</label>
-          {option.choices?.map((choice, index) => (
+          {safeOption.choices?.map((choice, index) => (
             <div key={`choice-${index}`} style={{ display: 'flex', marginBottom: '8px' }}>
               <input
                 type="text"
@@ -191,7 +197,7 @@ const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) =
       <div style={{ marginBottom: '12px' }}>
         <label style={labelStyle}>Validator</label>
         <textarea
-          value={option.validate || ''}
+          value={safeOption.validate || ''}
           onChange={handleValidateChange}
           placeholder="input => input.trim() !== '' || 'Value is required'"
           style={{

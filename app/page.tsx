@@ -332,48 +332,6 @@ export default function Home() {
     }
   };
 
-  const handleRawDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    try {
-      const rawText = e.target.value;
-      let newConfig;
-
-      if (configFormat === 'yaml') {
-        newConfig = yaml.load(rawText) as CommandConfig;
-      } else {
-        newConfig = JSON.parse(rawText);
-      }
-
-      // Validate the structure
-      if (!newConfig || !Array.isArray(newConfig.commands)) {
-        throw new Error('Invalid configuration format');
-      }
-
-      setTempConfig(newConfig);
-      setErrorMessage(null);
-      setRawConfigValid(true);
-    } catch (error) {
-      setErrorMessage(`Invalid ${configFormat.toUpperCase()} format`);
-      setRawConfigValid(false);
-      console.error(error);
-    }
-  };
-
-  const applyRawChanges = () => {
-    if (rawConfigValid) {
-      setConfig(tempConfig);
-      setSuccessMessage('Changes applied successfully');
-      setTimeout(() => setSuccessMessage(null), 3000);
-    }
-  };
-
-  const cancelRawChanges = () => {
-    setTempConfig(config);
-    setErrorMessage(null);
-    setRawConfigValid(true);
-    setSuccessMessage('Changes discarded');
-    setTimeout(() => setSuccessMessage(null), 3000);
-  };
-
   const handleImportClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -498,14 +456,15 @@ export default function Home() {
                                 </div>
 
                                 {/* Render options for this subcommand */}
-                                {subcommand.options && subcommand.options.length > 0 && (
+                                {subcommand.options && Array.isArray(subcommand.options) && subcommand.options.length > 0 && (
                                     <Droppable
                                         droppableId={`tree-options-${commandIndex}-${subcommandPath.join('-')}`}
                                         type="tree-options"
                                     >
                                       {(provided) => (
                                           <ul className={styles.optionsList} ref={provided.innerRef} {...provided.droppableProps}>
-                                            {subcommand.options?.map((opt, optIndex) => {
+                                            {subcommand.options && Array.isArray(subcommand.options) && subcommand.options.map((opt, optIndex) => {
+                                              if (!opt) return null;
                                               const optPath = [...subcommandPath, `option-${optIndex}`];
                                               const optId = `tree-option-${commandIndex}-${optPath.join('-')}`;
 
@@ -521,14 +480,14 @@ export default function Home() {
                                                             ref={provided.innerRef}
                                                             {...provided.draggableProps}
                                                         >
-                                        <span
-                                            className={styles.optionName}
-                                            onClick={() => navigateToElement(commandIndex, optPath)}
-                                        >
-                                          <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
-                                          {opt.name || 'Unnamed option'} ({opt.type})
-                                        </span>
-                                                          {renderOptionDetails(opt, commandIndex, optPath)}
+                      <span
+                          className={styles.optionName}
+                          onClick={() => navigateToElement(commandIndex, optPath)}
+                      >
+                        <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
+                        {opt.name || 'Unnamed option'} ({opt.type || 'unknown'})
+                      </span>
+                                                          {renderOptionDetails(opt)}
                                                         </li>
                                                     )}
                                                   </Draggable>
@@ -556,21 +515,23 @@ export default function Home() {
     };
 
     // Helper function for rendering option details
-    const renderOptionDetails = (opt: CommandOption, commandIndex: number, path: string[] = []) => {
+    const renderOptionDetails = (opt: CommandOption) => {
+      if (!opt) return null;
+
       return (
           <>
-        <span className={styles.optionType}>
-          Type: {opt.type}
-        </span>
+      <span className={styles.optionType}>
+        Type: {opt.type || 'unknown'}
+      </span>
             {opt.type === 'list' && opt.choices && (
                 <span className={styles.optionChoices}>
-            Choices: {opt.choices.join(', ')}
-          </span>
+          Choices: {opt.choices.join(', ')}
+        </span>
             )}
             {opt.default !== undefined && (
                 <span className={styles.optionDefault}>
-            Default: {typeof opt.default === 'boolean' ? (opt.default ? 'Yes' : 'No') : opt.default}
-          </span>
+          Default: {typeof opt.default === 'boolean' ? (opt.default ? 'Yes' : 'No') : opt.default}
+        </span>
             )}
           </>
       );
@@ -602,11 +563,13 @@ export default function Home() {
                                 {cmd.name}
                               </div>
 
-                              {cmd.options && cmd.options.length > 0 && (
+                              {cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0 && (
                                   <Droppable droppableId={`tree-options-${idx}`} type="tree-options">
                                     {(provided) => (
                                         <ul className={styles.optionsList} ref={provided.innerRef} {...provided.droppableProps}>
-                                          {cmd.options?.map((opt, optIndex) => {
+                                          {cmd.options && Array.isArray(cmd.options) && cmd.options.map((opt, optIndex) => {
+                                            if (!opt) return null;
+
                                             const optionPath = [`option-${optIndex}`];
                                             const optionId = `tree-option-${idx}-${optionPath.join('-')}`;
 
@@ -622,14 +585,14 @@ export default function Home() {
                                                           ref={provided.innerRef}
                                                           {...provided.draggableProps}
                                                       >
-                                      <span
-                                          className={styles.optionName}
-                                          onClick={() => navigateToElement(idx, optionPath)}
-                                      >
-                                        <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
-                                        {opt.name || 'Unnamed option'} ({opt.type})
-                                      </span>
-                                                        {renderOptionDetails(opt, idx, optionPath)}
+                      <span
+                          className={styles.optionName}
+                          onClick={() => navigateToElement(idx, optionPath)}
+                      >
+                        <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
+                        {opt.name || 'Unnamed option'} ({opt.type || 'unknown'})
+                      </span>
+                                                        {renderOptionDetails(opt)}
                                                       </li>
                                                   )}
                                                 </Draggable>
@@ -714,9 +677,9 @@ export default function Home() {
         const newCommands = JSON.parse(JSON.stringify(config.commands));
 
         // Get the source option
-        let sourceCommand = newCommands[parseInt(sourceParts[2], 10)];
+        const sourceCommand = newCommands[parseInt(sourceParts[2], 10)];
         let sourceTarget = sourceCommand;
-        let sourcePath = sourceParts.slice(3);
+        const sourcePath = sourceParts.slice(3);
 
         // Navigate through the source path to find the options array
         if (sourcePath.length > 0) {
@@ -727,6 +690,11 @@ export default function Home() {
           }
         }
 
+        // Ensure source has options array before accessing it
+        if (!sourceTarget.options) {
+          sourceTarget.options = [];
+        }
+
         // Remove the option from source
         const [removedOption] = sourceTarget.options.splice(source.index, 1);
 
@@ -735,9 +703,9 @@ export default function Home() {
           sourceTarget.options.splice(destination.index, 0, removedOption);
         } else {
           // Different target - we need to find the destination options array
-          let destCommand = newCommands[parseInt(destParts[2], 10)];
+          const destCommand = newCommands[parseInt(destParts[2], 10)];
           let destTarget = destCommand;
-          let destPath = destParts.slice(3);
+          const destPath = destParts.slice(3);
 
           // Navigate through the destination path
           if (destPath.length > 0) {
@@ -746,6 +714,11 @@ export default function Home() {
                 destTarget = destTarget.subcommands[parseInt(destPath[i+1], 10)];
               }
             }
+          }
+
+          // Ensure options array exists before splicing
+          if (!destTarget.options) {
+            destTarget.options = [];
           }
 
           // Add the option to destination
@@ -764,12 +737,12 @@ export default function Home() {
 
         // Create a deep copy of commands
         const newCommands = JSON.parse(JSON.stringify(config.commands));
-        let targetCommand = newCommands[commandIndex];
+        const targetCommand = newCommands[commandIndex];
 
         // Navigate to the correct subcommands array based on path
         if (pathParts.length > 0) {
           let current = targetCommand;
-          let path = [];
+          const path = [];
 
           for (let i = 0; i < pathParts.length; i++) {
             path.push(pathParts[i]);
@@ -1073,7 +1046,10 @@ export default function Home() {
 
                         setRawConfigValid(true);
                         return newConfig as CommandConfig;
-                      } catch (error) {
+                      } catch (error: unknown) {
+                        console.error('Error parsing file:', error instanceof Error ? error.message : String(error));
+                        setErrorMessage(`Invalid ${configFormat.toUpperCase()} file format`);
+                        setTimeout(() => setErrorMessage(null), 3000);
                         setRawConfigValid(false);
                         // Return previous value but update the textarea content
                         return prev;
