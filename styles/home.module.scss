@@ -974,3 +974,55 @@ $error-color: #e74c3c;
     transform: translateY(-10px);
   }
 }
+
+.optionsList {
+  list-style: none;
+  padding-left: 20px;
+  margin: 5px 0;
+
+  .optionItem {
+    display: flex;
+    flex-direction: column;
+    padding: 5px 8px;
+    margin: 5px 0;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.03);
+    transition: background-color 0.2s;
+
+    &.dragging {
+      background-color: rgba(0, 123, 255, 0.1);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    }
+
+    .optionName {
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+
+      &:hover {
+        color: #3182ce;
+      }
+    }
+  }
+}
+
+.treeDragHandle {
+  display: inline-block;
+  margin-right: 8px;
+  color: #666;
+  cursor: grab;
+  font-size: 14px;
+}
+
+.previewSection {
+  .dragging {
+    opacity: 0.6;
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  // Override any unintended drag UI from nested contexts
+  .react-beatiful-dnd-dragging {
+    pointer-events: none !important;
+  }
+}

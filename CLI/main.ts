@@ -321,6 +321,7 @@ async function selectConfigFile(): Promise<string> {
 
     return configPath;
   } catch (error) {
+    // @ts-ignore
     if (error.name === 'ExitPromptError') {
       console.log('\nConfig selection terminated with Ctrl+C');
       process.exit(0);
@@ -373,6 +374,7 @@ async function safePrompt(questions: any[]): Promise<any> {
   try {
     return await inquirer.prompt(questions);
   } catch (error) {
+    // @ts-ignore
     if (error.name === 'ExitPromptError') {
       console.log('\nPrompt terminated with Ctrl+C');
       process.exit(0); // Clean exit without error message

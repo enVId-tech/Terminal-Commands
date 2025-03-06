@@ -7,6 +7,7 @@ import {Command, CommandConfig, CommandOption, SubCommand} from './types/command
 import styles from '@/styles/home.module.scss';
 import { useRouter } from 'next/navigation';
 import yaml from 'js-yaml';
+import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
 
 export default function Home() {
   const [config, setConfig] = useState<CommandConfig>({ commands: [] });
@@ -53,6 +54,11 @@ export default function Home() {
   }, []);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    // Don't set isDragging if we're dragging a tree item
+    if (document.body.classList.contains('dragging-active')) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
@@ -443,7 +449,6 @@ export default function Home() {
     );
   }
 
-// Updated renderSelectionTree function
   const renderSelectionTree = () => {
     if (config.commands.length === 0) {
       return <p>No commands defined</p>;
@@ -455,66 +460,111 @@ export default function Home() {
         commandIndex: number,
         parentPath: string[] = []
     ) => {
+      const droppableId = `tree-${commandIndex}-${parentPath.join('-')}`;
+      const droppableType = `tree-subcommands-${commandIndex}-${parentPath.join('-')}`;
+
       return (
-          <ul className={styles.subcommandsList}>
-            {subcommands.map((subcmd, subcmdIdx) => {
-              const currentPath = [...parentPath, `subcommand-${subcmdIdx}`];
-              return (
-                  <li key={subcmdIdx} className={styles.subcommandItem}>
-                    <div
-                        className={styles.subcommandNode}
-                        onClick={() => navigateToElement(commandIndex, currentPath)}
-                    >
-                      {subcmd.name}
-                    </div>
-                    {subcmd.options && subcmd.options.length > 0 && (
-                        <ul className={styles.optionsList}>
-                          {subcmd.options.map((opt, optIdx) => {
-                            const optionPath = [...currentPath, `option-${optIdx}`];
-                            return (
-                                <li key={optIdx} className={styles.optionItem}>
-                        <span
-                            className={styles.optionLabel}
-                            onClick={() => navigateToElement(commandIndex, optionPath)}
+          <Droppable droppableId={droppableId} type={droppableType}>
+            {(provided) => (
+                <ul className={styles.subcommandsList} ref={provided.innerRef} {...provided.droppableProps}>
+                  {subcommands.map((subcommand, subcommandIndex) => {
+                    // Create a path for this subcommand
+                    const subcommandPath = [...parentPath, `subcommand-${subcommandIndex}`];
+                    const subcommandId = `tree-subcommand-${commandIndex}-${subcommandPath.join('-')}`;
+
+                    return (
+                        <Draggable
+                            key={subcommandId}
+                            draggableId={subcommandId}
+                            index={subcommandIndex}
                         >
-                          {opt.name || 'Unnamed option'} ({opt.type})
-                        </span>
-                                  {renderOptionDetails(opt)}
-                                </li>
-                            );
-                          })}
-                        </ul>
-                    )}
-                    {subcmd.subcommands && subcmd.subcommands.length > 0 &&
-                        renderSubcommands(subcmd.subcommands, commandIndex, [...currentPath, 'subcommands'])}
-                  </li>
-              );
-            })}
-          </ul>
+                          {(provided, snapshot) => (
+                              <li
+                                  className={`${styles.subcommandItem} ${snapshot.isDragging ? styles.dragging : ''}`}
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                              >
+                                <div
+                                    className={styles.subcommandNode}
+                                    onClick={() => navigateToElement(commandIndex, subcommandPath)}
+                                >
+                                  <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
+                                  {subcommand.name}
+                                </div>
+
+                                {/* Render options for this subcommand */}
+                                {subcommand.options && subcommand.options.length > 0 && (
+                                    <Droppable
+                                        droppableId={`tree-options-${commandIndex}-${subcommandPath.join('-')}`}
+                                        type="tree-options"
+                                    >
+                                      {(provided) => (
+                                          <ul className={styles.optionsList} ref={provided.innerRef} {...provided.droppableProps}>
+                                            {subcommand.options?.map((opt, optIndex) => {
+                                              const optPath = [...subcommandPath, `option-${optIndex}`];
+                                              const optId = `tree-option-${commandIndex}-${optPath.join('-')}`;
+
+                                              return (
+                                                  <Draggable
+                                                      key={optId}
+                                                      draggableId={optId}
+                                                      index={optIndex}
+                                                  >
+                                                    {(provided, snapshot) => (
+                                                        <li
+                                                            className={`${styles.optionItem} ${snapshot.isDragging ? styles.dragging : ''}`}
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                        >
+                                        <span
+                                            className={styles.optionName}
+                                            onClick={() => navigateToElement(commandIndex, optPath)}
+                                        >
+                                          <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
+                                          {opt.name || 'Unnamed option'} ({opt.type})
+                                        </span>
+                                                          {renderOptionDetails(opt, commandIndex, optPath)}
+                                                        </li>
+                                                    )}
+                                                  </Draggable>
+                                              );
+                                            })}
+                                            {provided.placeholder}
+                                          </ul>
+                                      )}
+                                    </Droppable>
+                                )}
+
+                                {/* Recursively render nested subcommands */}
+                                {subcommand.subcommands && subcommand.subcommands.length > 0 &&
+                                    renderSubcommands(subcommand.subcommands, commandIndex, [...subcommandPath, 'subcommands'])}
+                              </li>
+                          )}
+                        </Draggable>
+                    );
+                  })}
+                  {provided.placeholder}
+                </ul>
+            )}
+          </Droppable>
       );
     };
 
     // Helper function for rendering option details
-    const renderOptionDetails = (opt: CommandOption) => {
+    const renderOptionDetails = (opt: CommandOption, commandIndex: number, path: string[] = []) => {
       return (
           <>
+        <span className={styles.optionType}>
+          Type: {opt.type}
+        </span>
             {opt.type === 'list' && opt.choices && (
-                <ul className={styles.choicesList}>
-                  {opt.choices.map((choice, choiceIdx) => (
-                      <li key={choiceIdx} className={styles.choiceItem}>
-                        {choice} {opt.default === choice && <span className={styles.defaultBadge}>Default</span>}
-                      </li>
-                  ))}
-                </ul>
-            )}
-            {opt.type === 'confirm' && (
-                <span className={styles.defaultValue}>
-            Default: {opt.default ? 'Yes' : 'No'}
+                <span className={styles.optionChoices}>
+            Choices: {opt.choices.join(', ')}
           </span>
             )}
-            {opt.type !== 'list' && opt.type !== 'confirm' && opt.default && (
-                <span className={styles.defaultValue}>
-            Default: {opt.default}
+            {opt.default !== undefined && (
+                <span className={styles.optionDefault}>
+            Default: {typeof opt.default === 'boolean' ? (opt.default ? 'Yes' : 'No') : opt.default}
           </span>
             )}
           </>
@@ -524,37 +574,226 @@ export default function Home() {
     return (
         <div className={styles.selectionTree}>
           <h3>Command Selection Tree</h3>
-          <ul className={styles.treeList}>
-            {config.commands.map((cmd, idx) => (
-                <li key={idx} className={styles.treeItem}>
-                  <div
-                      className={styles.treeNode}
-                      onClick={() => navigateToElement(idx)}
-                  >
-                    {cmd.name}
-                  </div>
-                  {cmd.options && cmd.options.length > 0 && (
-                      <ul className={styles.optionsList}>
-                        {cmd.options.map((opt, optIdx) => (
-                            <li key={optIdx} className={styles.optionItem}>
-                    <span
-                        className={styles.optionLabel}
-                        onClick={() => navigateToElement(idx, [`option-${optIdx}`])}
-                    >
-                      {opt.name || 'Unnamed option'} ({opt.type})
-                    </span>
-                              {renderOptionDetails(opt)}
+          <Droppable droppableId="tree-commands-list" type="tree-commands">
+            {(provided) => (
+                <ul className={styles.treeList} ref={provided.innerRef} {...provided.droppableProps}>
+                  {config.commands.map((cmd, idx) => (
+                      <Draggable
+                          key={`tree-cmd-${idx}`}
+                          draggableId={`tree-cmd-${idx}`}
+                          index={idx}
+                      >
+                        {(provided, snapshot) => (
+                            <li
+                                className={`${styles.treeItem} ${snapshot.isDragging ? styles.dragging : ''}`}
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                            >
+                              <div
+                                  className={styles.treeNode}
+                                  onClick={() => navigateToElement(idx)}
+                              >
+                                <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
+                                {cmd.name}
+                              </div>
+
+                              {cmd.options && cmd.options.length > 0 && (
+                                  <Droppable droppableId={`tree-options-${idx}`} type="tree-options">
+                                    {(provided) => (
+                                        <ul className={styles.optionsList} ref={provided.innerRef} {...provided.droppableProps}>
+                                          {cmd.options?.map((opt, optIndex) => {
+                                            const optionPath = [`option-${optIndex}`];
+                                            const optionId = `tree-option-${idx}-${optionPath.join('-')}`;
+
+                                            return (
+                                                <Draggable
+                                                    key={optionId}
+                                                    draggableId={optionId}
+                                                    index={optIndex}
+                                                >
+                                                  {(provided, snapshot) => (
+                                                      <li
+                                                          className={`${styles.optionItem} ${snapshot.isDragging ? styles.dragging : ''}`}
+                                                          ref={provided.innerRef}
+                                                          {...provided.draggableProps}
+                                                      >
+                                      <span
+                                          className={styles.optionName}
+                                          onClick={() => navigateToElement(idx, optionPath)}
+                                      >
+                                        <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
+                                        {opt.name || 'Unnamed option'} ({opt.type})
+                                      </span>
+                                                        {renderOptionDetails(opt, idx, optionPath)}
+                                                      </li>
+                                                  )}
+                                                </Draggable>
+                                            );
+                                          })}
+                                          {provided.placeholder}
+                                        </ul>
+                                    )}
+                                  </Droppable>
+                              )}
+
+                              {cmd.subcommands && cmd.subcommands.length > 0 &&
+                                  renderSubcommands(cmd.subcommands, idx, ["subcommands"])}
                             </li>
-                        ))}
-                      </ul>
-                  )}
-                  {cmd.subcommands && cmd.subcommands.length > 0 &&
-                      renderSubcommands(cmd.subcommands, idx, ["subcommands"])}
-                </li>
-            ))}
-          </ul>
+                        )}
+                      </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </ul>
+            )}
+          </Droppable>
         </div>
     );
+  };
+
+  const handleDragStart = () => {
+    // Add a class to the body element to track drag state
+    document.body.classList.add('dragging-active');
+  };
+
+  // Handle command reordering
+  const handleDragEnd = (result: DropResult) => {
+    // Remove the class when dragging ends
+    document.body.classList.remove('dragging-active');
+
+    // Only set isDragging to false if we're NOT in a tree drag operation
+    if (!result.draggableId.startsWith('tree-')) {
+      setIsDragging(false);
+    }
+
+    if (!result.destination) return;
+
+    const { source, destination, type } = result;
+
+    // If dropped in the same position, do nothing
+    if (source.index === destination.index && source.droppableId === destination.droppableId) return;
+
+    setTimeout(() => {
+      // Handle main command reordering
+      if (type === 'commands' || type === 'tree-commands') {
+        const newCommands = [...config.commands];
+        const [removed] = newCommands.splice(source.index, 1);
+        newCommands.splice(destination.index, 0, removed);
+
+        setConfig({
+          ...config,
+          commands: newCommands
+        });
+
+        // Update selected command index if it was affected
+        if (selectedCommand !== null) {
+          if (selectedCommand === source.index) {
+            setSelectedCommand(destination.index);
+          } else if (
+              selectedCommand > source.index && selectedCommand <= destination.index
+          ) {
+            setSelectedCommand(selectedCommand - 1);
+          } else if (
+              selectedCommand < source.index && selectedCommand >= destination.index
+          ) {
+            setSelectedCommand(selectedCommand + 1);
+          }
+        }
+      }
+      // Handle options reordering
+      else if (type === 'tree-options') {
+        // Parse the droppableId to get command index and path
+        const sourceParts = source.droppableId.split('-');
+        const destParts = destination.droppableId.split('-');
+
+        // Create a deep copy of commands
+        const newCommands = JSON.parse(JSON.stringify(config.commands));
+
+        // Get the source option
+        let sourceCommand = newCommands[parseInt(sourceParts[2], 10)];
+        let sourceTarget = sourceCommand;
+        let sourcePath = sourceParts.slice(3);
+
+        // Navigate through the source path to find the options array
+        if (sourcePath.length > 0) {
+          for (let i = 0; i < sourcePath.length; i += 2) {
+            if (sourcePath[i] === 'subcommand') {
+              sourceTarget = sourceTarget.subcommands[parseInt(sourcePath[i+1], 10)];
+            }
+          }
+        }
+
+        // Remove the option from source
+        const [removedOption] = sourceTarget.options.splice(source.index, 1);
+
+        // If source and destination are the same, we're just reordering within the same list
+        if (source.droppableId === destination.droppableId) {
+          sourceTarget.options.splice(destination.index, 0, removedOption);
+        } else {
+          // Different target - we need to find the destination options array
+          let destCommand = newCommands[parseInt(destParts[2], 10)];
+          let destTarget = destCommand;
+          let destPath = destParts.slice(3);
+
+          // Navigate through the destination path
+          if (destPath.length > 0) {
+            for (let i = 0; i < destPath.length; i += 2) {
+              if (destPath[i] === 'subcommand') {
+                destTarget = destTarget.subcommands[parseInt(destPath[i+1], 10)];
+              }
+            }
+          }
+
+          // Add the option to destination
+          destTarget.options.splice(destination.index, 0, removedOption);
+        }
+
+        setConfig({
+          ...config,
+          commands: newCommands
+        });
+      }
+      // Handle subcommands reordering
+      else if (type.startsWith('tree-subcommands-')) {
+        const commandIndex = parseInt(type.split('-')[2], 10);
+        const pathParts = type.split('-').slice(3);
+
+        // Create a deep copy of commands
+        const newCommands = JSON.parse(JSON.stringify(config.commands));
+        let targetCommand = newCommands[commandIndex];
+
+        // Navigate to the correct subcommands array based on path
+        if (pathParts.length > 0) {
+          let current = targetCommand;
+          let path = [];
+
+          for (let i = 0; i < pathParts.length; i++) {
+            path.push(pathParts[i]);
+
+            if (pathParts[i] === 'subcommands') {
+              continue;
+            }
+
+            if (path[path.length - 2] === 'subcommands') {
+              const index = parseInt(pathParts[i].split('-')[1], 10);
+              current = current.subcommands[index];
+            }
+          }
+
+          // Move the subcommand
+          const [removed] = current.subcommands.splice(source.index, 1);
+          current.subcommands.splice(destination.index, 0, removed);
+        } else {
+          // Direct subcommands of a command
+          const [removed] = targetCommand.subcommands.splice(source.index, 1);
+          targetCommand.subcommands.splice(destination.index, 0, removed);
+        }
+
+        setConfig({
+          ...config,
+          commands: newCommands
+        });
+      }
+    }, 0);
   };
 
   return (
@@ -668,7 +907,20 @@ export default function Home() {
 
         {showPreview && (
             <div className={styles.previewSection}>
-              {renderSelectionTree()}
+              <div className={styles.previewHeader}>
+                <h2>
+                  Command Preview
+                  <button onClick={togglePreview} className={styles.closeButton}>×</button>
+                </h2>
+              </div>
+              <div className={styles.previewContent}>
+                <DragDropContext
+                    onDragEnd={handleDragEnd}
+                    onDragStart={handleDragStart}
+                >
+                  {renderSelectionTree()}
+                </DragDropContext>
+              </div>
             </div>
         )}
 
@@ -706,38 +958,73 @@ export default function Home() {
                   </div>
               ) : (
                   <div className={styles.commandList}>
-                    <div className={styles.commandSidebar}>
-                      {config.commands.map((command, index) => (
-                          <div
-                              key={`command-item-${index}`}
-                              className={`${styles.commandItem} ${selectedCommand === index ? styles.selectedCommand : ''}`}
-                              onClick={() => selectCommand(index)}
-                          >
-                            {command.name}
-                          </div>
-                      ))}
-                      <button className={styles.addCommandButton} onClick={addCommand}>
-                        + Add Command
-                      </button>
-                    </div>
+                    <DragDropContext
+                        onDragEnd={handleDragEnd}
+                    >
+                      <Droppable
+                          droppableId="commands-list"
+                          type="commands"
+                          isCombineEnabled={false}
+                          ignoreContainerClipping={false}
+                      >
+                        {(provided) => (
+                            <div
+                                className={styles.commandSidebar}
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                            >
+                              {config.commands.map((command, index) => (
+                                  <Draggable
+                                      key={`command-item-${index}`}
+                                      draggableId={`command-item-${index}`}
+                                      index={index}
+                                  >
+                                    {(provided, snapshot) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            className={`
+                ${styles.commandItem}
+                ${selectedCommand === index ? styles.selectedCommand : ''}
+                ${snapshot.isDragging ? styles.dragging : ''}
+              `}
+                                            onClick={() => selectCommand(index)}
+                                        >
+              <span className={styles.dragHandle}>
+                ⠿
+              </span>
+                                          {command.name}
+                                        </div>
+                                    )}
+                                  </Draggable>
+                              ))}
+                              {provided.placeholder}
+                              <button className={styles.addCommandButton} onClick={addCommand}>
+                                + Add Command
+                              </button>
+                            </div>
+                        )}
+                      </Droppable>
 
-                    <div className={styles.commandEditor}>
-                      {selectedCommand !== null ? (
-                          <div className={styles.commandBox}>
-                            <CommandForm
-                                command={config.commands[selectedCommand]}
-                                commandId={`cmd-${selectedCommand}`}
-                                onUpdate={(updatedCommand) => updateCommand(selectedCommand, updatedCommand)}
-                                onRemove={() => removeCommand(selectedCommand)}
-                                highlightedElement={highlightedElement}
-                            />
-                          </div>
-                      ) : (
-                          <div className={styles.noCommandSelected}>
-                            <p>Select a command from the list or create a new one</p>
-                          </div>
-                      )}
-                    </div>
+                      <div className={styles.commandEditor}>
+                        {selectedCommand !== null ? (
+                            <div className={styles.commandBox}>
+                              <CommandForm
+                                  command={config.commands[selectedCommand]}
+                                  commandId={`cmd-${selectedCommand}`}
+                                  onUpdate={(updatedCommand) => updateCommand(selectedCommand, updatedCommand)}
+                                  onRemove={() => removeCommand(selectedCommand)}
+                                  highlightedElement={highlightedElement}
+                              />
+                            </div>
+                        ) : (
+                            <div className={styles.noCommandSelected}>
+                              <p>Select a command from the list or create a new one</p>
+                            </div>
+                        )}
+                      </div>
+                    </DragDropContext>
                   </div>
               )}
             </div>

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import OptionForm from './OptionForm';
 import styles from '../../styles/commandform.module.scss';
 import { CommandOption, SubCommand } from "@/app/types/commands";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 
 interface SubCommandFormProps {
   subcommand: SubCommand;
@@ -27,6 +28,7 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
   const { subcommand, subcommandId, onUpdate, onRemove, highlightedElement } = props;
   const enhancedSubcommand = subcommand as EnhancedSubcommand;
   const [activeTab, setActiveTab] = useState<'options' | 'execute' | 'subcommands'>('options');
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   // Migrate legacy execute field if needed
   useEffect(() => {
@@ -127,6 +129,45 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
   // Check if subcommand has nested subcommands
   const hasNestedSubcommands = subcommand.subcommands && subcommand.subcommands.length > 0;
 
+  // Handle drag and drop
+  const handleDragEnd = (result: any) => {
+    const { source, destination, type } = result;
+
+    // If dropped outside a droppable area or in same position
+    if (!destination ||
+        (source.index === destination.index &&
+            source.droppableId === destination.droppableId)) {
+      return;
+    }
+
+    // Use setTimeout to delay state updates
+    setTimeout(() => {
+      // Handle options reordering
+      if (type === 'options') {
+        const options = [...(subcommand.options || [])];
+        const [removed] = options.splice(source.index, 1);
+        options.splice(destination.index, 0, removed);
+        onUpdate({ ...subcommand, options });
+      }
+
+      // Handle nested subcommands reordering
+      else if (type === 'nested-subcommands') {
+        const subcommands = [...(subcommand.subcommands || [])];
+        const [removed] = subcommands.splice(source.index, 1);
+        subcommands.splice(destination.index, 0, removed);
+        onUpdate({ ...subcommand, subcommands });
+      }
+
+      // Handle execute commands reordering
+      else if (type === 'execute-commands') {
+        const executeCommands = [...(enhancedSubcommand.executeCommands || [])];
+        const [removed] = executeCommands.splice(source.index, 1);
+        executeCommands.splice(destination.index, 0, removed);
+        onUpdate({ ...subcommand, executeCommands });
+      }
+    }, 0);
+  };
+
   return (
       <div className={styles.commandForm}>
         <div className={styles.formSection}>
@@ -163,125 +204,207 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
           </div>
         </div>
 
-        <div className={styles.tabContent}>
-          {activeTab === 'options' && (
-              <div className={styles.formSection}>
-                {subcommand.options?.map((option: CommandOption, index: number) => (
-                    <div
-                        key={`option-${index}`}
-                        className={`${styles.itemContainer} ${highlightedElement === `${subcommandId}-option-${index}` ? styles.highlighted : ''}`}
-                        data-id={`${subcommandId}-option-${index}`}
-                    >
-                      <OptionForm
-                          option={option}
-                          optionId={`${subcommandId}-option-${index}`}
-                          onUpdate={(updatedOption) => updateOption(index, updatedOption)}
-                          onRemove={() => removeOption(index)}
-                          highlightedElement={highlightedElement}
-                      />
-                    </div>
-                ))}
-
-                <button onClick={addOption} className={styles.button}>
-                  Add Option
-                </button>
-              </div>
-          )}
-
-          {activeTab === 'subcommands' && (
-              <div className={styles.formSection}>
-                {subcommand.subcommands?.map((nestedSubcommand, index) => (
-                    <div
-                        key={`nested-subcommand-${index}`}
-                        className={`${styles.itemContainer} ${highlightedElement === `${subcommandId}-subcommands-subcommand-${index}` ? styles.highlighted : ''}`}
-                        data-id={`${subcommandId}-subcommands-subcommand-${index}`}
-                    >
-                      <SubCommandForm
-                          subcommand={nestedSubcommand}
-                          subcommandId={`${subcommandId}-subcommands-subcommand-${index}`}
-                          onUpdate={(updatedSubcommand) => updateNestedSubcommand(index, updatedSubcommand)}
-                          onRemove={() => removeNestedSubcommand(index)}
-                          highlightedElement={highlightedElement}
-                      />
-                    </div>
-                ))}
-
-                <button onClick={addNestedSubcommand} className={styles.button}>
-                  Add Nested Subcommand
-                </button>
-              </div>
-          )}
-
-          {activeTab === 'execute' && (
-              <div className={styles.formSection}>
-                <label className={styles.sectionTitle}>
-                  Execute Commands:
-                </label>
-
-                {typeof subcommand.execute === 'object' ? (
-                    <div className={styles.helpText}>
-                      This subcommand is using dynamic execution based on option values.
-                      Please convert to standard execution to use multiple commands.
-                    </div>
-                ) : (
-                    <>
-                      <div className={styles.checkboxContainer}>
-                        <label className={styles.checkboxLabel}>
-                          <input
-                              type="checkbox"
-                              checked={enhancedSubcommand.executeParallel || false}
-                              onChange={toggleExecuteParallel}
-                              className={styles.checkbox}
-                          />
-                          <span>Execute commands in parallel</span>
-                        </label>
-                      </div>
-
-                      <div className={styles.executeCommandsList}>
-                        {(enhancedSubcommand.executeCommands || []).map((cmd, index) => (
-                            <div
-                                key={`cmd-${index}`}
-                                className={styles.executeCommandItem}
-                                data-id={`${subcommandId}-execute-${index}`}
-                            >
-                              <input
-                                  type="text"
-                                  value={cmd}
-                                  onChange={(e) => updateExecuteCommand(index, e.target.value)}
-                                  placeholder="npm run build -- --env={{buildType}}"
-                                  className={styles.nameInput}
-                              />
-                              <button
-                                  onClick={() => removeExecuteCommand(index)}
-                                  className={styles.dangerButton}
+        <DragDropContext
+            onDragEnd={(result) => {
+              setIsDragging(false);
+              handleDragEnd(result);
+            }}
+            onDragStart={() => setIsDragging(true)}
+        >
+          <div className={styles.tabContent}>
+            {activeTab === 'options' && (
+                <div className={styles.formSection}>
+                  <Droppable
+                      droppableId={`${subcommandId}-options`}
+                      type="options"
+                      isCombineEnabled={false}
+                      ignoreContainerClipping={false}
+                  >
+                    {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps}>
+                          {subcommand.options?.map((option: CommandOption, index: number) => (
+                              <Draggable
+                                  key={`option-${index}`}
+                                  draggableId={`${subcommandId}-option-${index}`}
+                                  index={index}
                               >
-                                Remove
-                              </button>
-                            </div>
-                        ))}
-                      </div>
+                                {(provided, snapshot) => (
+                                    <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        className={`
+                              ${styles.itemContainer}
+                              ${highlightedElement === `${subcommandId}-option-${index}` ? styles.highlighted : ''}
+                              ${snapshot.isDragging ? styles.dragging : ''}
+                            `}
+                                        data-id={`${subcommandId}-option-${index}`}
+                                    >
+                                      <div className={styles.dragHandleArea} {...provided.dragHandleProps}>
+                                        <span className={styles.dragHandle}>⠿</span>
+                                      </div>
+                                      <OptionForm
+                                          option={option}
+                                          optionId={`${subcommandId}-option-${index}`}
+                                          onUpdate={(updatedOption) => updateOption(index, updatedOption)}
+                                          onRemove={() => removeOption(index)}
+                                          highlightedElement={highlightedElement}
+                                      />
+                                    </div>
+                                )}
+                              </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                    )}
+                  </Droppable>
 
-                      <button
-                          onClick={addExecuteCommand}
-                          className={styles.button}
-                      >
-                        Add Command
-                      </button>
+                  <button onClick={addOption} className={styles.button}>
+                    Add Option
+                  </button>
+                </div>
+            )}
 
-                      {hasNestedSubcommands && (
-                          <div className={styles.helpText}>
-                            These commands will run before executing nested subcommands
-                          </div>
-                      )}
+            {activeTab === 'subcommands' && (
+                <div className={styles.formSection}>
+                  <Droppable
+                      droppableId={`${subcommandId}-nested-subcommands`}
+                      type="nested-subcommands"
+                      isCombineEnabled={false}
+                      ignoreContainerClipping={false}
+                  >
+                    {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps}>
+                          {subcommand.subcommands?.map((nestedSubcommand, index) => (
+                              <Draggable
+                                  key={`nested-subcommand-${index}`}
+                                  draggableId={`${subcommandId}-nested-subcommand-${index}`}
+                                  index={index}
+                              >
+                                {(provided, snapshot) => (
+                                    <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        className={`
+                              ${styles.itemContainer}
+                              ${highlightedElement === `${subcommandId}-subcommands-subcommand-${index}` ? styles.highlighted : ''}
+                              ${snapshot.isDragging ? styles.dragging : ''}
+                            `}
+                                        data-id={`${subcommandId}-subcommands-subcommand-${index}`}
+                                    >
+                                      <div className={styles.dragHandleArea} {...provided.dragHandleProps}>
+                                        <span className={styles.dragHandle}>⠿</span>
+                                      </div>
+                                      <SubCommandForm
+                                          subcommand={nestedSubcommand}
+                                          subcommandId={`${subcommandId}-subcommands-subcommand-${index}`}
+                                          onUpdate={(updatedSubcommand) => updateNestedSubcommand(index, updatedSubcommand)}
+                                          onRemove={() => removeNestedSubcommand(index)}
+                                          highlightedElement={highlightedElement}
+                                      />
+                                    </div>
+                                )}
+                              </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                    )}
+                  </Droppable>
 
+                  <button onClick={addNestedSubcommand} className={styles.button}>
+                    Add Nested Subcommand
+                  </button>
+                </div>
+            )}
+
+            {activeTab === 'execute' && (
+                <div className={styles.formSection}>
+                  <label className={styles.sectionTitle}>
+                    Execute Commands:
+                  </label>
+
+                  {typeof subcommand.execute === 'object' ? (
                       <div className={styles.helpText}>
-                        Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code>
+                        This subcommand is using dynamic execution based on option values.
+                        Please convert to standard execution to use multiple commands.
                       </div>
-                    </>
-                )}
-              </div>
-          )}
-        </div>
+                  ) : (
+                      <>
+                        <div className={styles.checkboxContainer}>
+                          <label className={styles.checkboxLabel}>
+                            <input
+                                type="checkbox"
+                                checked={enhancedSubcommand.executeParallel || false}
+                                onChange={toggleExecuteParallel}
+                                className={styles.checkbox}
+                            />
+                            <span>Execute commands in parallel</span>
+                          </label>
+                        </div>
+
+                        <Droppable droppableId={`${subcommandId}-execute-commands`} type="execute-commands">
+                          {(provided) => (
+                              <div
+                                  className={styles.executeCommandsList}
+                                  ref={provided.innerRef}
+                                  {...provided.droppableProps}
+                              >
+                                {(enhancedSubcommand.executeCommands || []).map((cmd, index) => (
+                                    <Draggable
+                                        key={`cmd-${index}`}
+                                        draggableId={`${subcommandId}-execute-${index}`}
+                                        index={index}
+                                    >
+                                      {(provided, snapshot) => (
+                                          <div
+                                              ref={provided.innerRef}
+                                              {...provided.draggableProps}
+                                              className={`
+                                    ${styles.executeCommandItem}
+                                    ${snapshot.isDragging ? styles.dragging : ''}
+                                  `}
+                                              data-id={`${subcommandId}-execute-${index}`}
+                                          >
+                                            <div className={styles.dragHandleArea} {...provided.dragHandleProps}>
+                                              <span className={styles.dragHandle}>⠿</span>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={cmd}
+                                                onChange={(e) => updateExecuteCommand(index, e.target.value)}
+                                                placeholder="npm run build -- --env={{buildType}}"
+                                                className={styles.nameInput}
+                                            />
+                                            <button
+                                                onClick={() => removeExecuteCommand(index)}
+                                                className={styles.dangerButton}
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                      )}
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                              </div>
+                          )}
+                        </Droppable>
+
+                        <button
+                            onClick={addExecuteCommand}
+                            className={styles.button}
+                        >
+                          Add Command
+                        </button>
+
+                        <div className={styles.helpText}>
+                          Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code>
+                        </div>
+                      </>
+                  )}
+                </div>
+            )}
+          </div>
+        </DragDropContext>
 
         <div className={styles.actionButtons}>
           <button onClick={onRemove} className={styles.dangerButton}>
