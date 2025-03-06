@@ -24,6 +24,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [highlightedElement, setHighlightedElement] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   useEffect(() => {
     const loadCommands = async () => {
@@ -50,6 +51,81 @@ export default function Home() {
 
     loadCommands();
   }, []);
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+
+    const file = files[0];
+    handleFile(file);
+  };
+
+// Add a helper function to handle the file
+  const handleFile = (file: File) => {
+    // Check if it's a JSON or YAML file
+    if (!file.name.toLowerCase().match(/\.(json|ya?ml)$/)) {
+      setErrorMessage('Only JSON, YAML or YML files are supported');
+      return;
+    }
+
+    // Set format based on file extension
+    if (file.name.toLowerCase().endsWith('.yaml') || file.name.toLowerCase().endsWith('.yml')) {
+      setConfigFormat('yaml');
+    } else {
+      setConfigFormat('json');
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        // For YAML files, we need to send to API for parsing
+        if (configFormat === 'yaml') {
+          const response = await fetch('/api/commands/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: event.target?.result
+          });
+
+          if (!response.ok) throw new Error('Failed to parse YAML');
+          const importedConfig = await response.json();
+          setConfig(importedConfig);
+          setTempConfig(importedConfig);
+        } else {
+          // For JSON files, parse directly
+          const importedConfig = JSON.parse(event.target?.result as string);
+          setConfig(importedConfig);
+          setTempConfig(importedConfig);
+        }
+
+        setSuccessMessage('Configuration imported successfully');
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } catch (error) {
+        console.error('Error parsing file:', error);
+        setErrorMessage(`Invalid ${configFormat.toUpperCase()} file format`);
+        setTimeout(() => setErrorMessage(null), 3000);
+      }
+    };
+    reader.onerror = () => {
+      setErrorMessage('Error reading file');
+    };
+    reader.readAsText(file);
+  };
 
 // In your page.tsx file, modify the navigateToElement function
   const navigateToElement = (commandIndex: number, path: string[] = []) => {
@@ -297,46 +373,7 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Set format based on file extension
-    if (file.name.toLowerCase().endsWith('.yaml') || file.name.toLowerCase().endsWith('.yml')) {
-      setConfigFormat('yaml');
-    } else {
-      setConfigFormat('json');
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        // For YAML files, we need to send to API for parsing
-        if (configFormat === 'yaml') {
-          const response = await fetch('/api/commands/parse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: event.target?.result
-          });
-
-          if (!response.ok) throw new Error('Failed to parse YAML');
-          const importedConfig = await response.json();
-          setConfig(importedConfig);
-          setTempConfig(importedConfig);
-        } else {
-          // For JSON files, parse directly
-          const importedConfig = JSON.parse(event.target?.result as string);
-          setConfig(importedConfig);
-          setTempConfig(importedConfig);
-        }
-
-        setSuccessMessage('Configuration imported successfully');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (error) {
-        console.error('Error parsing file:', error);
-        setErrorMessage(`Invalid ${configFormat.toUpperCase()} file format`);
-      }
-    };
-    reader.onerror = () => {
-      setErrorMessage('Error reading file');
-    };
-    reader.readAsText(file);
+    handleFile(file);
 
     // Reset the file input so the same file can be selected again
     if (fileInputRef.current) {
@@ -521,7 +558,27 @@ export default function Home() {
   };
 
   return (
-      <div className={styles.container}>
+      <div
+          className={styles.container}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+      >
+        {isDragging && (
+            <div className={styles.dragOverlay}>
+              <div className={styles.dropZone}>
+                <div className={styles.dropIcon}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </div>
+                <p>Drop your config file here</p>
+                <span className={styles.supportedFormats}>.json, .yaml, .yml</span>
+              </div>
+            </div>
+        )}
         <div className={styles.header}>
           <h1 className={styles.heading}>CLI Command Builder</h1>
           <div className={styles.headerButtons}>
@@ -578,7 +635,7 @@ export default function Home() {
                 ref={fileInputRef}
                 onChange={handleFileImport}
                 accept=".json,.yml,.yaml"
-                style={{ display: 'none' }}
+                style={{display: 'none'}}
             />
             <button className={styles.button} onClick={handleExportConfig}>
               Export Config
@@ -592,21 +649,21 @@ export default function Home() {
             <button className={styles.button} onClick={togglePreview}>
               {showPreview ? 'Hide' : 'Show'} Selection Tree
             </button>
-            <button className={styles.button} onClick={() => setConfig({ commands: [] })}>
+            <button className={styles.button} onClick={() => setConfig({commands: []})}>
               Clear Selection
             </button>
           </div>
 
-        {/*  <div className={styles.savePath}>*/}
-        {/*    <label htmlFor="savePath">Local Save Path:</label>*/}
-        {/*    <input*/}
-        {/*        type="text"*/}
-        {/*        id="savePath"*/}
-        {/*        value={saveLocalPath}*/}
-        {/*        onChange={handlePathChange}*/}
-        {/*        placeholder="./data"*/}
-        {/*    />*/}
-        {/*  </div>*/}
+          {/*  <div className={styles.savePath}>*/}
+          {/*    <label htmlFor="savePath">Local Save Path:</label>*/}
+          {/*    <input*/}
+          {/*        type="text"*/}
+          {/*        id="savePath"*/}
+          {/*        value={saveLocalPath}*/}
+          {/*        onChange={handlePathChange}*/}
+          {/*        placeholder="./data"*/}
+          {/*    />*/}
+          {/*  </div>*/}
         </div>
 
         {showPreview && (
@@ -733,7 +790,8 @@ export default function Home() {
         </div>
 
         <div className={styles.footer}>
-          <p>Erick Tran - CLI Command Builder — Build interactive CLI tools with {configFormat.toUpperCase()} configuration</p>
+          <p>Erick Tran - CLI Command Builder — Build interactive CLI tools
+            with {configFormat.toUpperCase()} configuration</p>
         </div>
       </div>
   );
