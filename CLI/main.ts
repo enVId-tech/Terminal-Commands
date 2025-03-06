@@ -17,6 +17,16 @@ const dataDirPath: string = '../data'
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+process.on('SIGINT', () => {
+  console.log('\n\nProgram terminated with Ctrl+C');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n\nProgram terminated');
+  process.exit(0);
+});
+
 // Register custom Handlebars helpers
 Handlebars.registerHelper('includes', function(array, value) {
   return Array.isArray(array) && array.includes(value);
@@ -53,39 +63,49 @@ async function runCommand(commandTemplate: string, answers: Record<string, unkno
 
   console.log(`Executing: ${command}`);
 
-  return new Promise((resolve, reject) => {
-    // Parse the command and arguments
-    const [cmd, ...args] = command.split(' ');
-
-    // Handle npx/npm commands on Windows
+  return new Promise((resolve) => {
     const isWindows = process.platform === 'win32';
-    const executable = isWindows && (cmd === 'npx' || cmd === 'npm') ? `${cmd}.cmd` : cmd;
+    const childProcess = spawn(
+        isWindows ? 'cmd' : 'sh',
+        [isWindows ? '/c' : '-c', command],
+        {
+          stdio: 'inherit',
+          env: {...process.env},
+          windowsHide: true
+        }
+    );
 
-    // Try using shell:true for all platforms to resolve path issues
-    const childProcess = spawn(executable, args, {
-      stdio: 'inherit',
-      shell: true, // Use shell on all platforms for better path resolution
-      env: {...process.env}
-    });
+    // Create a unique handler for this specific child process
+    const sigintHandler = () => {
+      if (!childProcess.killed) {
+        childProcess.kill('SIGINT');
+        console.log('\nCommand was terminated with Ctrl+C');
+      }
+    };
+
+    // Use a named handler and add it just for this process execution
+    process.prependListener('SIGINT', sigintHandler);
 
     childProcess.on('error', (err) => {
-      console.error(`Command failed to start: ${err.message}`);
-      if (err.message.includes('PRN')) {
-        console.error('This may be a Windows device access issue. Try running as administrator.');
-      }
-      // Resolve anyway to continue with other commands
+      console.error(`Command failed: ${err.message}`);
+      // Ensure handler is removed
+      process.removeListener('SIGINT', sigintHandler);
       resolve();
     });
 
     childProcess.on('close', (code) => {
+      // Always remove the handler when done
+      process.removeListener('SIGINT', sigintHandler);
+
       if (code === 0) {
-        console.log('Command completed successfully!');
-        resolve();
+        console.log('✓ Command completed');
+      } else if (code === null || code === 130) {
+        console.log('\nCommand was terminated with Ctrl+C');
       } else {
-        console.error(`Command exited with code ${code}`);
-        // Resolve anyway to continue with other commands
-        resolve();
+        console.error(`⚠ Command exited with code ${code}`);
       }
+
+      resolve();
     });
   });
 }
@@ -97,18 +117,16 @@ async function processOptions(options: any[]): Promise<any> {
   const processedOptions = options.map(option => {
     const processed = { ...option };
     if (typeof option.validate === 'string') {
-      // Convert string validators to functions
       try {
         processed.validate = new Function('input', `return (${option.validate})(input)`);
       } catch (error) {
-        console.error(`Failed to parse validator: ${option.validate}`);
         delete processed.validate;
       }
     }
     return processed;
   });
 
-  return inquirer.prompt(processedOptions);
+  return await safePrompt(processedOptions);
 }
 
 async function runCommands(commandTemplates: string[], answers: any, runParallel: boolean = false): Promise<void> {
@@ -234,12 +252,16 @@ async function handleCommand(command: any): Promise<void> {
     let shouldRunParallel = !!command.executeParallel;
 
     if (command.requireExecutionChoice) {
-      const { runInParallel } = await inquirer.prompt([{
-        type: 'confirm',
-        name: 'runInParallel',
-        message: 'Run commands in parallel?',
-        default: shouldRunParallel
-      }]);
+        // If requireExecutionChoice is true, ask the user for execution preference
+      const { runInParallel } = await safePrompt([
+        {
+          type: 'confirm',
+          name: 'runInParallel',
+          message: 'Run commands in parallel?',
+          default: shouldRunParallel
+        }
+      ]);
+
       shouldRunParallel = runInParallel;
     }
 
@@ -271,66 +293,100 @@ async function handleCommand(command: any): Promise<void> {
 }
 
 async function selectConfigFile(): Promise<string> {
-  // Find all JSON and YAML files in the data directory
-  const dataDir = path.join(__dirname, dataDirPath);
-  const files = fs.readdirSync(dataDir).filter(file =>
-      ['.json', '.yml', '.yaml'].includes(path.extname(file).toLowerCase())
-  );
+  try {
+    // Find all JSON and YAML files in the data directory
+    const dataDir = path.join(__dirname, dataDirPath);
+    const files = fs.readdirSync(dataDir).filter(file =>
+        ['.json', '.yml', '.yaml'].includes(path.extname(file).toLowerCase())
+    );
 
-  if (files.length === 0) {
-    console.error('No config files found in the data directory.');
-    process.exit(1);
+    if (files.length === 0) {
+      console.error('No config files found in the data directory.');
+      process.exit(1);
+    }
+
+    let configPath;
+
+    if (files.length === 1) {
+      configPath = path.join(dataDir, files[0]);
+    } else {
+      const { selectedFile } = await inquirer.prompt([{
+        type: 'list',
+        name: 'selectedFile',
+        message: 'Select a configuration file:',
+        choices: files
+      }]);
+      configPath = path.join(dataDir, selectedFile);
+    }
+
+    return configPath;
+  } catch (error) {
+    if (error.name === 'ExitPromptError') {
+      console.log('\nConfig selection terminated with Ctrl+C');
+      process.exit(0);
+    }
+    throw error;
   }
-
-  let configPath;
-
-  if (files.length === 1) {
-    configPath = path.join(dataDir, files[0]);
-  } else {
-    const { selectedFile } = await inquirer.prompt([{
-      type: 'list',
-      name: 'selectedFile',
-      message: 'Select a configuration file:',
-      choices: files
-    }]);
-    configPath = path.join(dataDir, selectedFile);
-  }
-
-  return configPath;
 }
 
 async function main(): Promise<void> {
-  // Allow user to select which config file to use
-  const configPath = await selectConfigFile();
-  const config = loadCommands(configPath);
-  const commands = config.commands;
+  try {
+    // Allow user to select which config file to use
+    const configPath = await selectConfigFile();
+    const config = loadCommands(configPath);
+    const commands = config.commands;
 
-  if (!commands || commands.length === 0) {
-    console.log('No commands defined in the configuration file.');
-    return;
-  }
-
-  // Build the main menu from the command configuration
-  const { commandType } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'commandType',
-      message: 'Select the type of command you want to execute:',
-      choices: commands.map((cmd: any) => cmd.name)
+    if (!commands || commands.length === 0) {
+      console.log('No commands defined in the configuration file.');
+      return;
     }
-  ]);
 
-  // Find the selected command
-  const selectedCommand = commands.find((cmd: any) => cmd.name === commandType);
+    // Build the main menu from the command configuration
+    const { commandType } = await safePrompt([
+      {
+        type: 'list',
+        name: 'commandType',
+        message: 'Select the type of command you want to execute:',
+        choices: commands.map((cmd: any) => cmd.name)
+      }
+    ]);
 
-  if (selectedCommand) {
-    await handleCommand(selectedCommand);
-  } else {
-    console.error(`Command ${commandType} not found in configuration`);
+    // Find the selected command
+    const selectedCommand = commands.find((cmd: any) => cmd.name === commandType);
+
+    if (selectedCommand) {
+      await handleCommand(selectedCommand);
+    } else {
+      console.error(`Command ${commandType} not found in configuration`);
+    }
+  } catch (error) {
+    if (error.name === 'ExitPromptError') {
+      console.log('\nProgram terminated with Ctrl+C');
+      process.exit(0);
+    } else {
+      console.error('An error occurred:', error);
+    }
+  }
+}
+
+async function safePrompt(questions: any[]): Promise<any> {
+  try {
+    return await inquirer.prompt(questions);
+  } catch (error) {
+    if (error.name === 'ExitPromptError') {
+      console.log('\nPrompt terminated with Ctrl+C');
+      process.exit(0); // Clean exit without error message
+    }
+    throw error; // Re-throw other errors
   }
 }
 
 // Use function call to start the program
 main().catch(error => {
-  console.error('An error occurred:', error);
+  if (error.name === 'ExitPromptError') {
+    console.log('\nProgram terminated with Ctrl+C');
+    process.exit(0); // Clean exit
+  } else {
+    console.error('An error occurred:', error);
+  }
 });
