@@ -27,6 +27,29 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
+function executeCommand(command: string): void {
+  const child = spawn(command, [], {
+    shell: true,
+    stdio: 'inherit'
+  });
+
+  child.on('error', (error) => {
+    console.error(`Error executing command: ${error.message}`);
+  });
+}
+
+async function executeCommandSync(command: string): Promise<void> {
+  try {
+    console.log(`Executing: ${command}`);
+    const { stdout, stderr } = await execPromise(command);
+    if (stdout) console.log(stdout);
+    if (stderr) console.error(stderr);
+  } catch (error: any) {
+    console.error(`Command failed: ${error.message as string}`);
+    throw error;
+  }
+}
+
 // Register custom Handlebars helpers
 Handlebars.registerHelper('includes', function(array, value) {
   return Array.isArray(array) && array.includes(value);
@@ -243,53 +266,142 @@ async function handleSubcommand(subcommand: any, parentAnswers: Record<string, u
   }
 }
 
-async function handleCommand(command: any): Promise<void> {
-  // Get user inputs for the command's options
-  const answers = command.options ? await processOptions(command.options) : {};
+async function handleCommand(selectedCommand: any): Promise<void> {
+  // First check if it has subcommands
+  if (selectedCommand.subcommands && selectedCommand.subcommands.length > 0) {
+    const { subcommandName } = await safePrompt([
+      {
+        type: 'list',
+        name: 'subcommandName',
+        message: 'Select a subcommand:',
+        choices: selectedCommand.subcommands.map((sub: any) => sub.name)
+      }
+    ]);
 
-  // First, execute this command's commands if defined
-  if (Array.isArray(command.executeCommands) && command.executeCommands.length > 0) {
-    let shouldRunParallel = !!command.executeParallel;
-
-    if (command.requireExecutionChoice) {
-        // If requireExecutionChoice is true, ask the user for execution preference
-      const { runInParallel } = await safePrompt([
-        {
-          type: 'confirm',
-          name: 'runInParallel',
-          message: 'Run commands in parallel?',
-          default: shouldRunParallel
-        }
-      ]);
-
-      shouldRunParallel = runInParallel;
-    }
-
-    await runCommands(command.executeCommands, answers, shouldRunParallel);
-  } else if (command.execute) {
-    // Legacy single command format
-    await runCommand(command.execute, answers);
-  }
-
-  // Then, check if this command has subcommands
-  if (command.subcommands && command.subcommands.length > 0) {
-    // Handle commands with subcommands
-    const { subcommandType } = await inquirer.prompt([{
-      type: 'list',
-      name: 'subcommandType',
-      message: `Select ${command.name} operation:`,
-      choices: command.subcommands.map((sub: any) => sub.name)
-    }]);
-
-    const selectedSubcommand = command.subcommands.find(
-        (sub: any) => sub.name === subcommandType
+    const selectedSubcommand = selectedCommand.subcommands.find(
+        (sub: any) => sub.name === subcommandName
     );
 
     if (selectedSubcommand) {
-      // Handle the subcommand with the command-level answers passed down
-      await handleSubcommand(selectedSubcommand, answers);
+      await handleCommand(selectedSubcommand);
+    }
+    return;
+  }
+
+  // Process options if present
+  let optionsData = {};
+  if (selectedCommand.options && selectedCommand.options.length > 0) {
+    optionsData = await safePrompt(selectedCommand.options);
+  }
+
+  // Handle command execution
+  if (selectedCommand.executeCommands && selectedCommand.executeCommands.length > 0) {
+    // Add confirmation if required
+    if (selectedCommand.requireExecutionChoice) {
+      const { confirmExecution } = await safePrompt([
+        {
+          type: 'confirm',
+          name: 'confirmExecution',
+          message: 'Execute the commands now?',
+          default: true
+        }
+      ]);
+
+      if (!confirmExecution) {
+        console.log('Command execution cancelled.');
+        return;
+      }
+    }
+
+    // Process commands based on language and execute them
+    for (const cmd of selectedCommand.executeCommands) {
+      const language = selectedCommand.language || 'default';
+      const processedCmd = processTemplate(cmd, optionsData);
+
+      if (selectedCommand.executeParallel) {
+        executeCommandByLanguage(processedCmd, language, true);
+      } else {
+        await executeCommandByLanguage(processedCmd, language, false);
+      }
     }
   }
+}
+
+// Function to execute commands based on language
+async function executeCommandByLanguage(command: string, language = 'default', inParallel = false): Promise<void> {
+  // Create temporary file for code if needed
+  if (language !== 'default') {
+    const tmpFile = getTempFilename(language);
+    await fs.promises.writeFile(tmpFile, command);
+
+    let execCmd;
+    switch (language) {
+      case 'javascript':
+        execCmd = `node ${tmpFile}`;
+        break;
+      case 'typescript':
+        execCmd = `ts-node ${tmpFile}`;
+        break;
+      case 'cpp':
+        const cppOutFile = tmpFile.replace(/\.[^/.]+$/, '');
+        execCmd = `g++ ${tmpFile} -o ${cppOutFile} && ${cppOutFile}`;
+        break;
+      case 'csharp':
+        execCmd = `dotnet script ${tmpFile}`;
+        break;
+      case 'java':
+        // Extract class name for Java compilation
+        const className = extractClassName(command) || 'Main';
+        await fs.promises.writeFile(`${className}.java`, command);
+        execCmd = `javac ${className}.java && java ${className}`;
+        break;
+      case 'kotlin':
+        execCmd = `kotlinc ${tmpFile} -include-runtime -d ${tmpFile}.jar && java -jar ${tmpFile}.jar`;
+        break;
+      default:
+        execCmd = command; // Fallback
+    }
+
+    await fs.promises.unlink(tmpFile);
+
+    if (inParallel) {
+      executeCommand(execCmd);
+    } else {
+      await executeCommandSync(execCmd);
+    }
+  } else {
+    // For default shell commands
+    if (inParallel) {
+      executeCommand(command);
+    } else {
+      await executeCommandSync(command);
+    }
+  }
+}
+
+// Helper functions
+function getTempFilename(language: string): string {
+  const timestamp = new Date().getTime();
+  switch (language) {
+    case 'javascript': return `temp_${timestamp}.js`;
+    case 'typescript': return `temp_${timestamp}.ts`;
+    case 'cpp': return `temp_${timestamp}.cpp`;
+    case 'csharp': return `temp_${timestamp}.csx`;
+    case 'java': return `temp_${timestamp}.java`;
+    case 'kotlin': return `temp_${timestamp}.kt`;
+    default: return `temp_${timestamp}.txt`;
+  }
+}
+
+function extractClassName(javaCode: string): string | null {
+  const classMatch = javaCode.match(/public\s+class\s+(\w+)/);
+  return classMatch ? classMatch[1] : null;
+}
+
+function processTemplate(template: string, data: any): string {
+  // Process Handlebars template with data
+  const compiledTemplate = Handlebars.compile(template);
+  return compiledTemplate(data);
 }
 
 async function selectConfigFile(): Promise<string> {
@@ -360,7 +472,7 @@ async function main(): Promise<void> {
     } else {
       console.error(`Command ${commandType} not found in configuration`);
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error.name === 'ExitPromptError') {
       console.log('\nProgram terminated with Ctrl+C');
       process.exit(0);

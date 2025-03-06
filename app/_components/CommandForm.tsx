@@ -308,14 +308,37 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
 
             {activeTab === 'execute' && (
                 <div className={styles.formSection}>
-                  {/* ... keep checkbox container section */}
+                  <div className={styles.checkboxContainer}>
+                    <label className={styles.checkboxLabel}>
+                      <input
+                          type="checkbox"
+                          checked={enhancedCommand.executeParallel || false}
+                          onChange={toggleExecuteParallel}
+                          className={styles.checkbox}
+                      />
+                      <span>Execute commands in parallel</span>
+                    </label>
+                  </div>
 
-                  <Droppable
-                      droppableId={`${commandId}-execute-commands`}
-                      type="execute-commands"
-                      isCombineEnabled={false}
-                      ignoreContainerClipping={false}
-                  >
+                  {/* Add language selector */}
+                  <div className={styles.languageSelector}>
+                    <label className={styles.sectionTitle}>Command Language:</label>
+                    <select
+                        value={enhancedCommand.language || 'default'}
+                        onChange={(e) => onUpdate({ ...command, language: e.target.value })}
+                        className={styles.selectInput}
+                    >
+                      <option value="default">Default (Shell)</option>
+                      <option value="javascript">JavaScript</option>
+                      <option value="typescript">TypeScript</option>
+                      <option value="cpp">C++</option>
+                      <option value="csharp">C#</option>
+                      <option value="java">Java</option>
+                      <option value="kotlin">Kotlin</option>
+                    </select>
+                  </div>
+
+                  <Droppable droppableId={`${commandId}-execute-commands`} type="execute-commands">
                     {(provided) => (
                         <div
                             className={styles.executeCommandsList}
@@ -333,20 +356,20 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         className={`
-                              ${styles.executeCommandItem} 
-                              ${snapshot.isDragging ? styles.dragging : ''}
-                            `}
+                      ${styles.executeCommandItem} 
+                      ${snapshot.isDragging ? styles.dragging : ''}
+                    `}
                                         data-id={`${commandId}-execute-${index}`}
                                     >
                                       <div className={styles.dragHandleArea} {...provided.dragHandleProps}>
                                         <span className={styles.dragHandle}>⠿</span>
                                       </div>
-                                      <input
-                                          type="text"
+                                      <textarea
                                           value={cmd}
                                           onChange={(e) => updateExecuteCommand(index, e.target.value)}
                                           placeholder="npm run build -- --env={{buildType}}"
-                                          className={styles.nameInput}
+                                          className={styles.commandTextArea}
+                                          rows={Math.max(3, cmd.split('\n').length)}
                                       />
                                       <button
                                           onClick={() => removeExecuteCommand(index)}
@@ -367,7 +390,10 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
                     Add Command
                   </button>
 
-                  {/* ... keep help text section */}
+                  <div className={styles.helpText}>
+                    <p>Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code></p>
+                    <p>Multiline commands are supported. Use language selection for code snippets in different languages.</p>
+                  </div>
                 </div>
             )}
           </div>

@@ -341,6 +341,24 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
                           </label>
                         </div>
 
+                        {/* Add language selector */}
+                        <div className={styles.languageSelector}>
+                          <label className={styles.sectionTitle}>Command Language:</label>
+                          <select
+                              value={enhancedSubcommand.language || 'default'}
+                              onChange={(e) => onUpdate({ ...subcommand, language: e.target.value })}
+                              className={styles.selectInput}
+                          >
+                            <option value="default">Default (Shell)</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="typescript">TypeScript</option>
+                            <option value="cpp">C++</option>
+                            <option value="csharp">C#</option>
+                            <option value="java">Java</option>
+                            <option value="kotlin">Kotlin</option>
+                          </select>
+                        </div>
+
                         <Droppable droppableId={`${subcommandId}-execute-commands`} type="execute-commands">
                           {(provided) => (
                               <div
@@ -359,20 +377,20 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
                                               ref={provided.innerRef}
                                               {...provided.draggableProps}
                                               className={`
-                                    ${styles.executeCommandItem}
-                                    ${snapshot.isDragging ? styles.dragging : ''}
-                                  `}
+                          ${styles.executeCommandItem}
+                          ${snapshot.isDragging ? styles.dragging : ''}
+                        `}
                                               data-id={`${subcommandId}-execute-${index}`}
                                           >
                                             <div className={styles.dragHandleArea} {...provided.dragHandleProps}>
                                               <span className={styles.dragHandle}>⠿</span>
                                             </div>
-                                            <input
-                                                type="text"
+                                            <textarea
                                                 value={cmd}
                                                 onChange={(e) => updateExecuteCommand(index, e.target.value)}
                                                 placeholder="npm run build -- --env={{buildType}}"
-                                                className={styles.nameInput}
+                                                className={styles.commandTextArea}
+                                                rows={Math.max(3, cmd.split('\n').length)}
                                             />
                                             <button
                                                 onClick={() => removeExecuteCommand(index)}
@@ -397,7 +415,8 @@ const SubCommandForm: React.FC<SubCommandFormProps> = (props) => {
                         </button>
 
                         <div className={styles.helpText}>
-                          Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code>
+                          <p>Use Handlebars syntax for variables: <code>{'{{variable}}'}</code> and conditions: <code>{'{{#if condition}}...{{/if}}'}</code></p>
+                          <p>Multiline commands are supported. Use language selection for code snippets in different languages.</p>
                         </div>
                       </>
                   )}

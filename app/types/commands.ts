@@ -11,26 +11,28 @@ export interface CommandOption {
 
 export interface Command {
   name: string;
-  options?: CommandOption[];
-  execute?: string | Record<string, string>; // For backward compatibility
-  executeCommands?: string[];
-  executeParallel?: boolean;
-  requireExecutionChoice?: boolean; // Made optional
-  subcommands?: SubCommand[];
   description?: string;
-}
-
-export interface SubCommand {
-  name: string;
   options?: CommandOption[];
   execute?: string | Record<string, string>;
   executeCommands?: string[];
   executeParallel?: boolean;
-  requireExecutionChoice?: boolean; // Made optional
-  postExecute?: string; // Legacy support
-  postExecuteCommands?: string[];
-  postExecuteParallel?: boolean;
+  language?: string;
+  requireExecutionChoice?: boolean;
   subcommands?: SubCommand[];
+}
+
+export interface SubCommand {
+  name: string;
+  description?: string;
+  options?: CommandOption[];
+  execute?: string | Record<string, string>;
+  executeCommands?: string[];
+  executeParallel?: boolean;
+  requireExecutionChoice?: boolean; // Add this property
+  language?: string;
+  subcommands?: SubCommand[];
+  postExecuteCommands?: string[]; // Add this property
+  postExecuteParallel?: boolean; // Add for completeness
 }
 
 export interface CommandConfig {

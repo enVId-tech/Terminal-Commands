@@ -53,6 +53,11 @@ export default function Home() {
     loadCommands();
   }, []);
 
+  useEffect(() => {
+    // Update tempConfig whenever config changes
+    setTempConfig(config);
+  }, [config]);
+
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     // Don't set isDragging if we're dragging a tree item
     if (document.body.classList.contains('dragging-active')) {
@@ -1031,35 +1036,71 @@ export default function Home() {
         )}
 
         {activeTab === 'raw' && (
-            <div className={styles.box}>
-              <p className={styles.description}>
-                Edit the raw {configFormat.toUpperCase()} configuration directly. Be careful to maintain valid format.
-              </p>
-              <div className={styles.rawEditorContainer}>
-                <textarea
-                    value={
-                      configFormat === 'yaml'
-                          ? yaml.dump(tempConfig)
-                          : JSON.stringify(tempConfig, null, 2)
-                    }
-                    onChange={handleRawDataChange}
-                    className={styles.rawEditor}
-                />
-                <div className={styles.rawEditorActions}>
-                  <button
-                      className={styles.applyButton}
-                      onClick={applyRawChanges}
-                      disabled={!rawConfigValid}
-                  >
-                    Apply Changes
-                  </button>
-                  <button
-                      className={styles.cancelButton}
-                      onClick={cancelRawChanges}
-                  >
-                    Discard Changes
-                  </button>
-                </div>
+            <div className={styles.rawEditorContainer}>
+              <div className={styles.formatSelector}>
+                <label>
+                  <input
+                      type="radio"
+                      value="json"
+                      checked={configFormat === 'json'}
+                      onChange={() => setConfigFormat('json')}
+                  />
+                  JSON
+                </label>
+                <label>
+                  <input
+                      type="radio"
+                      value="yaml"
+                      checked={configFormat === 'yaml'}
+                      onChange={() => setConfigFormat('yaml')}
+                  />
+                  YAML
+                </label>
+              </div>
+              <textarea
+                  className={`${styles.rawEditor} ${!rawConfigValid ? styles.invalid : ''}`}
+                  value={
+                    configFormat === 'json'
+                        ? JSON.stringify(tempConfig, null, 2)
+                        : yaml.dump(tempConfig)
+                  }
+                  onChange={(e) => {
+                    setTempConfig((prev) => {
+                      try {
+                        const newConfig = configFormat === 'json'
+                            ? JSON.parse(e.target.value)
+                            : yaml.load(e.target.value);
+
+                        setRawConfigValid(true);
+                        return newConfig as CommandConfig;
+                      } catch (error) {
+                        setRawConfigValid(false);
+                        // Return previous value but update the textarea content
+                        return prev;
+                      }
+                    });
+                  }}
+              />
+              <div className={styles.rawEditorControls}>
+                <button
+                    className={styles.button}
+                    disabled={!rawConfigValid}
+                    onClick={() => {
+                      setConfig(tempConfig);
+                      setSuccessMessage('Changes applied successfully');
+                      setTimeout(() => setSuccessMessage(null), 3000);
+                    }}
+                >
+                  Apply Changes
+                </button>
+                <button
+                    className={styles.buttonSecondary}
+                    onClick={() => {
+                      setTempConfig(config); // Reset to the current config
+                    }}
+                >
+                  Discard Changes
+                </button>
               </div>
             </div>
         )}

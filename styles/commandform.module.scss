@@ -327,3 +327,28 @@
     background-color: #bee3f8;
   }
 }
+
+.commandTextArea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+  flex: 1;
+}
+
+.languageSelector {
+  margin-bottom: 15px;
+
+  .selectInput {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: #fff;
+  }
+}
