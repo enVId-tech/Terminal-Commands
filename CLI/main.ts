@@ -28,9 +28,11 @@ process.on('SIGTERM', () => {
 });
 
 function executeCommand(command: string): void {
+  // Use detached mode for background processes
   const child = spawn(command, [], {
     shell: true,
-    stdio: 'inherit'
+    stdio: 'inherit',
+    detached: false // Keep this false for normal commands, but can be true for background tasks
   });
 
   child.on('error', (error) => {
@@ -41,8 +43,14 @@ function executeCommand(command: string): void {
 async function executeCommandSync(command: string): Promise<void> {
   try {
     console.log(`Executing: ${command}`);
-    const { stdout, stderr } = await execPromise(command);
-    if (stdout) console.log(stdout);
+
+    // Use maxBuffer option to prevent buffer overflow errors for large outputs
+    const { stdout, stderr } = await execPromise(command, { maxBuffer: 10 * 1024 * 1024 }); // 10MB buffer
+
+    // Avoid unnecessary console output for large responses
+    if (stdout && stdout.length < 5000) console.log(stdout);
+    else if (stdout) console.log(`Command produced ${stdout.length} bytes of output`);
+
     if (stderr) console.error(stderr);
   } catch (error: any) {
     console.error(`Command failed: ${error.message as string}`);
@@ -88,17 +96,21 @@ async function runCommand(commandTemplate: string, answers: Record<string, unkno
 
   return new Promise((resolve) => {
     const isWindows = process.platform === 'win32';
+
+    // Optimize spawn for better performance
     const childProcess = spawn(
         isWindows ? 'cmd' : 'sh',
         [isWindows ? '/c' : '-c', command],
         {
           stdio: 'inherit',
           env: {...process.env},
-          windowsHide: true
+          windowsHide: true,
+          // For CPU-intensive operations, you might want to adjust the priority
+          // Note: This requires higher privileges on some systems
+          // priority: -10 // Higher priority (Linux/macOS)
         }
     );
 
-    // Create a unique handler for this specific child process
     const sigintHandler = () => {
       if (!childProcess.killed) {
         childProcess.kill('SIGINT');
@@ -106,18 +118,15 @@ async function runCommand(commandTemplate: string, answers: Record<string, unkno
       }
     };
 
-    // Use a named handler and add it just for this process execution
     process.prependListener('SIGINT', sigintHandler);
 
     childProcess.on('error', (err) => {
       console.error(`Command failed: ${err.message}`);
-      // Ensure handler is removed
       process.removeListener('SIGINT', sigintHandler);
       resolve();
     });
 
     childProcess.on('close', (code) => {
-      // Always remove the handler when done
       process.removeListener('SIGINT', sigintHandler);
 
       if (code === 0) {
@@ -132,7 +141,6 @@ async function runCommand(commandTemplate: string, answers: Record<string, unkno
     });
   });
 }
-
 async function processOptions(options: any[]): Promise<any> {
   if (!options || options.length === 0) return {};
 
