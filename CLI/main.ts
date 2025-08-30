@@ -52,8 +52,10 @@ async function executeCommandSync(command: string): Promise<void> {
     else if (stdout) console.log(`Command produced ${stdout.length} bytes of output`);
 
     if (stderr) console.error(stderr);
-  } catch (error: any) {
-    console.error(`Command failed: ${error.message as string}`);
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`Command failed: ${error.message as string}`);
+    }
     throw error;
   }
 }
@@ -152,6 +154,7 @@ async function processOptions(options: any[]): Promise<any> {
         processed.validate = new Function('input', `return (${option.validate})(input)`);
       } catch (error) {
         delete processed.validate;
+        return error;
       }
     }
     return processed;
@@ -338,52 +341,60 @@ async function handleCommand(selectedCommand: any): Promise<void> {
 // Function to execute commands based on language
 async function executeCommandByLanguage(command: string, language = 'default', inParallel = false): Promise<void> {
   // Create temporary file for code if needed
-  if (language !== 'default') {
-    const tmpFile = getTempFilename(language);
-    await fs.promises.writeFile(tmpFile, command);
+  const tmpFile: string = getTempFilename(language);
+  await fs.promises.writeFile(tmpFile, command);
 
-    let execCmd;
-    switch (language) {
-      case 'javascript':
-        execCmd = `node ${tmpFile}`;
-        break;
-      case 'typescript':
-        execCmd = `ts-node ${tmpFile}`;
-        break;
-      case 'cpp':
-        const cppOutFile = tmpFile.replace(/\.[^/.]+$/, '');
-        execCmd = `g++ ${tmpFile} -o ${cppOutFile} && ${cppOutFile}`;
-        break;
-      case 'csharp':
-        execCmd = `dotnet script ${tmpFile}`;
-        break;
-      case 'java':
-        // Extract class name for Java compilation
-        const className = extractClassName(command) || 'Main';
-        await fs.promises.writeFile(`${className}.java`, command);
-        execCmd = `javac ${className}.java && java ${className}`;
-        break;
-      case 'kotlin':
-        execCmd = `kotlinc ${tmpFile} -include-runtime -d ${tmpFile}.jar && java -jar ${tmpFile}.jar`;
-        break;
-      default:
-        execCmd = command; // Fallback
+  try {
+    if (language !== 'default') {
+      let execCmd;
+      switch (language) {
+        case 'javascript':
+          execCmd = `node ${tmpFile}`;
+          break;
+        case 'typescript':
+          execCmd = `node ${tmpFile}`;
+          break;
+        case 'cpp':
+          const cppOutFile = tmpFile.replace(/\.[^/.]+$/, '');
+          execCmd = `g++ ${tmpFile} -o ${cppOutFile} && ${cppOutFile}`;
+          break;
+        case 'csharp':
+          execCmd = `dotnet script ${tmpFile}`;
+          break;
+        case 'java':
+          // Extract class name for Java compilation
+          const className: string = extractClassName(command) || 'Main';
+          await fs.promises.writeFile(`${className}.java`, command);
+          execCmd = `javac ${className}.java && java ${className}`;
+          break;
+        case 'kotlin':
+          execCmd = `kotlinc ${tmpFile} -include-runtime -d ${tmpFile}.jar && java -jar ${tmpFile}.jar`;
+          break;
+        default:
+          execCmd = command;
+      }
+
+      if (inParallel) {
+        executeCommand(execCmd);
+      } else {
+        await executeCommandSync(execCmd);
+      }
+    } else {
+      // For default shell commands
+      if (inParallel) {
+        executeCommand(command);
+      } else {
+        await executeCommandSync(command);
+      }
     }
-
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      throw new Error(`Error at executeCommandByLanguage in main.ts: ${error.name}`);
+    } else {
+      console.error(error);
+    }
+  } finally {
     await fs.promises.unlink(tmpFile);
-
-    if (inParallel) {
-      executeCommand(execCmd);
-    } else {
-      await executeCommandSync(execCmd);
-    }
-  } else {
-    // For default shell commands
-    if (inParallel) {
-      executeCommand(command);
-    } else {
-      await executeCommandSync(command);
-    }
   }
 }
 
@@ -441,8 +452,7 @@ async function selectConfigFile(): Promise<string> {
 
     return configPath;
   } catch (error) {
-    // @ts-ignore
-    if (error.name === 'ExitPromptError') {
+    if (error instanceof Error && error.name === 'ExitPromptError') {
       console.log('\nConfig selection terminated with Ctrl+C');
       process.exit(0);
     }
@@ -480,8 +490,8 @@ async function main(): Promise<void> {
     } else {
       console.error(`Command ${commandType} not found in configuration`);
     }
-  } catch (error: any) {
-    if (error.name === 'ExitPromptError') {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'ExitPromptError') {
       console.log('\nProgram terminated with Ctrl+C');
       process.exit(0);
     } else {
@@ -494,8 +504,7 @@ async function safePrompt(questions: any[]): Promise<any> {
   try {
     return await inquirer.prompt(questions);
   } catch (error) {
-    // @ts-ignore
-    if (error.name === 'ExitPromptError') {
+    if (error instanceof Error && error.name === 'ExitPromptError') {
       console.log('\nPrompt terminated with Ctrl+C');
       process.exit(0); // Clean exit without error message
     }

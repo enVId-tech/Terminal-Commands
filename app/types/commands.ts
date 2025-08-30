@@ -28,11 +28,11 @@ export interface SubCommand {
   execute?: string | Record<string, string>;
   executeCommands?: string[];
   executeParallel?: boolean;
-  requireExecutionChoice?: boolean; // Add this property
+  requireExecutionChoice?: boolean;
   language?: string;
   subcommands?: SubCommand[];
-  postExecuteCommands?: string[]; // Add this property
-  postExecuteParallel?: boolean; // Add for completeness
+  postExecuteCommands?: string[];
+  postExecuteParallel?: boolean;
 }
 
 export interface CommandConfig {

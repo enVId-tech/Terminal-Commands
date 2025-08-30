@@ -1,13 +1,13 @@
 // app/page.tsx
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import CommandForm from './_components/CommandForm';
 import {Command, CommandConfig, CommandOption, SubCommand} from './types/commands';
 import styles from '@/styles/home.module.scss';
-import { useRouter } from 'next/navigation';
+import {useRouter} from 'next/navigation';
 import yaml from 'js-yaml';
-import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
+import {DragDropContext, Draggable, Droppable, DropResult} from '@hello-pangea/dnd';
 
 export default function Home() {
   const [config, setConfig] = useState<CommandConfig>({ commands: [] });
@@ -44,13 +44,13 @@ export default function Home() {
       } catch (error) {
         console.error('Error loading commands:', error);
         setErrorMessage('Failed to load commands. Using example template.');
-        loadExampleCommands();
+        await loadExampleCommands();
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadCommands();
+    loadCommands().then(r => r);
   }, []);
 
   useEffect(() => {
@@ -113,7 +113,10 @@ export default function Home() {
             body: event.target?.result
           });
 
-          if (!response.ok) throw new Error('Failed to parse YAML');
+          if (!response.ok) {
+            console.error('Failed to parse YAML');
+            return;
+          }
           const importedConfig = await response.json();
           setConfig(importedConfig);
           setTempConfig(importedConfig);
@@ -677,8 +680,7 @@ export default function Home() {
         const newCommands = JSON.parse(JSON.stringify(config.commands));
 
         // Get the source option
-        const sourceCommand = newCommands[parseInt(sourceParts[2], 10)];
-        let sourceTarget = sourceCommand;
+        let sourceTarget = newCommands[parseInt(sourceParts[2], 10)];
         const sourcePath = sourceParts.slice(3);
 
         // Navigate through the source path to find the options array
@@ -703,8 +705,7 @@ export default function Home() {
           sourceTarget.options.splice(destination.index, 0, removedOption);
         } else {
           // Different target - we need to find the destination options array
-          const destCommand = newCommands[parseInt(destParts[2], 10)];
-          let destTarget = destCommand;
+          let destTarget = newCommands[parseInt(destParts[2], 10)];
           const destPath = destParts.slice(3);
 
           // Navigate through the destination path
