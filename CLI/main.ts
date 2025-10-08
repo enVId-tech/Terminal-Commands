@@ -3,6 +3,7 @@ import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import os from 'os';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import Handlebars from 'handlebars';
@@ -61,7 +62,7 @@ async function executeCommandSync(command: string): Promise<void> {
 }
 
 // Register custom Handlebars helpers
-Handlebars.registerHelper('includes', function(array, value) {
+Handlebars.registerHelper('includes', function (array, value) {
   return Array.isArray(array) && array.includes(value);
 });
 
@@ -98,20 +99,32 @@ async function runCommand(commandTemplate: string, answers: Record<string, unkno
 
   return new Promise((resolve) => {
     const isWindows = process.platform === 'win32';
-
-    // Optimize spawn for better performance
-    const childProcess = spawn(
-        isWindows ? 'cmd' : 'sh',
-        [isWindows ? '/c' : '-c', command],
-        {
-          stdio: 'inherit',
-          env: {...process.env},
-          windowsHide: true,
-          // For CPU-intensive operations, you might want to adjust the priority
-          // Note: This requires higher privileges on some systems
-          // priority: -10 // Higher priority (Linux/macOS)
-        }
-    );
+    
+    // Parse command to avoid extra shell layers for npm commands
+    const parts = command.split(/\s+/);
+    const isDirectExecutable = ['npm', 'npx', 'yarn', 'pnpm', 'git'].includes(parts[0]);
+    
+    let childProcess;
+    
+    if (isDirectExecutable && !command.includes('&&') && !command.includes('||') && !command.includes('|')) {
+      // Execute directly without shell for better performance
+      childProcess = spawn(parts[0], parts.slice(1), {
+        stdio: 'inherit',
+        env: {...process.env},
+        windowsHide: false
+      });
+    } else {
+      // Use shell for complex commands
+      childProcess = spawn(
+          isWindows ? 'cmd' : 'sh',
+          [isWindows ? '/c' : '-c', command],
+          {
+            stdio: 'inherit',
+            env: {...process.env},
+            windowsHide: false
+          }
+      );
+    }
 
     const sigintHandler = () => {
       if (!childProcess.killed) {
@@ -178,9 +191,9 @@ async function runCommands(commandTemplates: string[], answers: any, runParallel
       });
 
       await Promise.all(
-          commandTemplates
-              .filter(cmd => cmd && cmd.trim() !== '')
-              .map(commandTemplate => runCommand(commandTemplate, answers))
+        commandTemplates
+          .filter(cmd => cmd && cmd.trim() !== '')
+          .map(commandTemplate => runCommand(commandTemplate, answers))
       );
 
       console.log('All parallel commands completed');
@@ -253,7 +266,7 @@ async function handleSubcommand(subcommand: any, parentAnswers: Record<string, u
     }]);
 
     const selectedNestedSubcommand = subcommand.subcommands.find(
-        (sub: any) => sub.name === nestedSubcommandType
+      (sub: any) => sub.name === nestedSubcommandType
     );
 
     if (selectedNestedSubcommand) {
@@ -269,9 +282,9 @@ async function handleSubcommand(subcommand: any, parentAnswers: Record<string, u
       await runCommand(subcommand.postExecute, answers);
     } else if (Array.isArray(subcommand.postExecuteCommands)) {
       await runCommands(
-          subcommand.postExecuteCommands,
-          answers,
-          subcommand.postExecuteParallel || false
+        subcommand.postExecuteCommands,
+        answers,
+        subcommand.postExecuteParallel || false
       );
     }
   }
@@ -290,7 +303,7 @@ async function handleCommand(selectedCommand: any): Promise<void> {
     ]);
 
     const selectedSubcommand = selectedCommand.subcommands.find(
-        (sub: any) => sub.name === subcommandName
+      (sub: any) => sub.name === subcommandName
     );
 
     if (selectedSubcommand) {
@@ -339,62 +352,80 @@ async function handleCommand(selectedCommand: any): Promise<void> {
 }
 
 // Function to execute commands based on language
+// ...existing code...
+// Function to execute commands based on language
 async function executeCommandByLanguage(command: string, language = 'default', inParallel = false): Promise<void> {
-  // Create temporary file for code if needed
-  const tmpFile: string = getTempFilename(language);
-  await fs.promises.writeFile(tmpFile, command);
+  // For default shell commands, skip temp file creation entirely
+  if (language === 'default') {
+    if (inParallel) {
+      executeCommand(command);
+    } else {
+      await runCommand(command, {}); // Use runCommand instead of executeCommandSync
+    }
+    return;
+  }
+
+  // Only create temp files for actual code languages
+  const tmpFileName: string = getTempFilename(language);
+  const tmpPath = path.join(os.tmpdir(), tmpFileName);
+  await fs.promises.writeFile(tmpPath, command);
+
+  // For some languages we may create additional files we want to clean up
+  let extraFilesToClean: string[] = [];
 
   try {
-    if (language !== 'default') {
-      let execCmd;
-      switch (language) {
-        case 'javascript':
-          execCmd = `node ${tmpFile}`;
-          break;
-        case 'typescript':
-          execCmd = `node ${tmpFile}`;
-          break;
-        case 'cpp':
-          const cppOutFile = tmpFile.replace(/\.[^/.]+$/, '');
-          execCmd = `g++ ${tmpFile} -o ${cppOutFile} && ${cppOutFile}`;
-          break;
-        case 'csharp':
-          execCmd = `dotnet script ${tmpFile}`;
-          break;
-        case 'java':
-          // Extract class name for Java compilation
-          const className: string = extractClassName(command) || 'Main';
-          await fs.promises.writeFile(`${className}.java`, command);
-          execCmd = `javac ${className}.java && java ${className}`;
-          break;
-        case 'kotlin':
-          execCmd = `kotlinc ${tmpFile} -include-runtime -d ${tmpFile}.jar && java -jar ${tmpFile}.jar`;
-          break;
-        default:
-          execCmd = command;
+    let execCmd;
+    switch (language) {
+      case 'javascript':
+        execCmd = `node "${tmpPath}"`;
+        break;
+      case 'typescript':
+        execCmd = `node "${tmpPath}"`;
+        break;
+      case 'cpp':
+        const cppOutFile = tmpPath.replace(/\.[^/.]+$/, '');
+        execCmd = `g++ "${tmpPath}" -o "${cppOutFile}" && "${cppOutFile}"`;
+        break;
+      case 'csharp':
+        execCmd = `dotnet script "${tmpPath}"`;
+        break;
+      case 'java': {
+        // Write the Java file into the temp dir and run from that dir/classpath
+        const className: string = extractClassName(command) || 'Main';
+        const javaPath = path.join(os.tmpdir(), `${className}.java`);
+        await fs.promises.writeFile(javaPath, command);
+        extraFilesToClean.push(javaPath, path.join(os.tmpdir(), `${className}.class`));
+        // compile to temp dir and execute with classpath
+        execCmd = `javac "${javaPath}" -d "${os.tmpdir()}" && java -cp "${os.tmpdir()}" ${className}`;
+        break;
       }
+      case 'kotlin':
+        execCmd = `kotlinc "${tmpPath}" -include-runtime -d "${tmpPath}.jar" && java -jar "${tmpPath}.jar"`;
+        extraFilesToClean.push(`${tmpPath}.jar`);
+        break;
+      default:
+        execCmd = command;
+    }
 
-      if (inParallel) {
-        executeCommand(execCmd);
-      } else {
-        await executeCommandSync(execCmd);
-      }
-    } else {
-      // For default shell commands
-      if (inParallel) {
-        executeCommand(command);
-      } else {
-        await executeCommandSync(command);
-      }
-    }
+    await runCommand(execCmd, {});
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      throw new Error(`Error at executeCommandByLanguage in main.ts: ${error.name}`);
-    } else {
-      console.error(error);
-    }
+    // Preserve message for debugging
+    const msg = error instanceof Error ? `${error.message}` : String(error);
+    throw new Error(`Error at executeCommandByLanguage in main.ts: ${msg}`);
   } finally {
-    await fs.promises.unlink(tmpFile);
+    // Best-effort cleanup; ignore ENOENT
+    try {
+      await fs.promises.unlink(tmpPath);
+    } catch (e: any) {
+      if (e && e.code !== 'ENOENT') console.warn('Failed to remove temp file:', e);
+    }
+    for (const f of extraFilesToClean) {
+      try {
+        await fs.promises.unlink(f);
+      } catch (e: any) {
+        if (e && e.code !== 'ENOENT') console.warn('Failed to remove temp file:', e);
+      }
+    }
   }
 }
 
@@ -428,7 +459,7 @@ async function selectConfigFile(): Promise<string> {
     // Find all JSON and YAML files in the data directory
     const dataDir = path.join(__dirname, dataDirPath);
     const files = fs.readdirSync(dataDir).filter(file =>
-        ['.json', '.yml', '.yaml'].includes(path.extname(file).toLowerCase())
+      ['.json', '.yml', '.yaml'].includes(path.extname(file).toLowerCase())
     );
 
     if (files.length === 0) {
