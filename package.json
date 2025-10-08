@@ -6,31 +6,32 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "update-deps": "npx npm-check-updates -u && npm install"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.14.2",
+    "@chakra-ui/react": "^3.27.1",
     "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@hello-pangea/dnd": "^18.0.1",
-    "framer-motion": "^12.6.0",
+    "framer-motion": "^12.23.22",
     "handlebars": "^4.7.8",
-    "inquirer": "^12.5.0",
+    "inquirer": "^12.9.6",
     "js-yaml": "^4.1.0",
-    "next": "^15.4.7",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "sass": "^1.86.0",
-    "uuid": "^11.1.0"
+    "next": "^15.5.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "sass": "^1.93.2",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.2.0",
+    "eslint-config-next": "15.5.4",
     "typescript": "^5"
   },
   "type": "module"
