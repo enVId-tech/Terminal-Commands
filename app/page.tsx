@@ -44,13 +44,13 @@ export default function Home() {
       } catch (error) {
         console.error('Error loading commands:', error);
         setErrorMessage('Failed to load commands. Using example template.');
-        loadExampleCommands();
+        await loadExampleCommands();
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadCommands();
+    loadCommands().then(r => r);
   }, []);
 
   useEffect(() => {
@@ -113,7 +113,10 @@ export default function Home() {
             body: event.target?.result
           });
 
-          if (!response.ok) throw new Error('Failed to parse YAML');
+          if (!response.ok) {
+            console.error('Failed to parse YAML');
+            return;
+          }
           const importedConfig = await response.json();
           setConfig(importedConfig);
           setTempConfig(importedConfig);

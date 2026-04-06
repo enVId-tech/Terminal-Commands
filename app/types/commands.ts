@@ -118,15 +118,7 @@ export interface SubCommand {
    * Whether to execute the commands in parallel.
    */
   executeParallel?: boolean;
-
-  /**
-   * Whether the execution choice is required.
-   */
   requireExecutionChoice?: boolean;
-
-  /**
-   * The programming language for the subcommand.
-   */
   language?: string;
 
   /**
@@ -148,6 +140,10 @@ export interface SubCommand {
 /**
  * Represents the configuration for commands.
  */
+  postExecuteCommands?: string[];
+  postExecuteParallel?: boolean;
+}
+
 export interface CommandConfig {
   /**
    * An array of commands in the configuration.
