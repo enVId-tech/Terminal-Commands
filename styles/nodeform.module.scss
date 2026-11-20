@@ -1,354 +1,220 @@
-// styles/CommandForm.module.scss
-.commandForm {
+// styles/nodeform.module.scss
+.form {
+  display: grid;
+  gap: 16px;
   width: 100%;
+  min-width: 0;
 }
 
-.heading {
-  font-size: 20px;
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  color: var(--text-muted);
 }
 
-.nameInput {
+.input,
+.code {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 16px;
-  margin-bottom: 16px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+
+  &:hover {
+    border-color: var(--text-muted);
+  }
 }
 
-.formSection {
-  margin-bottom: 24px;
-}
-
-.sectionTitle {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 8px;
+.code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 44px;
 }
 
 .tabs {
   display: flex;
-  border-bottom: 1px solid #e2e8f0;
-  margin-bottom: 16px;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
 }
 
 .tab {
-  padding: 8px 16px;
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: none;
+  border: none;
   border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--text-muted);
   font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--text);
+  }
 
   &.active {
-    border-bottom: 2px solid #3182ce;
-    color: #3182ce;
+    color: var(--accent);
+    border-bottom-color: var(--accent);
   }
 }
 
-.tabContent {
-  padding: 8px 0;
+.badge {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.panel {
+  min-width: 0;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.item {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: box-shadow 0.15s, border-color 0.15s;
+
+  &.dragging {
+    box-shadow: var(--shadow-md);
+    border-color: var(--accent);
+  }
+
+  &.highlighted {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+}
+
+.handle {
+  flex: none;
+  align-self: flex-start;
+  padding: 2px 4px;
+  color: var(--text-muted);
+  cursor: grab;
+  user-select: none;
+  line-height: 1.2;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.itemBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.commandRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty,
+.help,
+.notice {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.notice {
+  padding: 8px 12px;
+  background: var(--warning-soft);
+  border-radius: var(--radius-sm);
+  color: var(--warning);
+}
+
+.help code,
+.notice code {
+  padding: 1px 5px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.button,
+.iconButton,
+.dangerButton {
+  padding: 7px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-3);
+  }
 }
 
 .button {
-  background: #3182ce;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
+  justify-self: start;
+}
 
-  &:hover {
-    background: #2b6cb0;
-  }
+.iconButton {
+  flex: none;
+  width: 34px;
+  padding: 7px 0;
 }
 
 .dangerButton {
-  background: #e53e3e;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
+  color: var(--danger);
 
   &:hover {
-    background: #c53030;
+    background: var(--danger-soft);
+    border-color: var(--danger);
   }
 }
 
-.itemContainer {
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  margin-bottom: 12px;
-}
-
-.executeCommandsList {
-  margin-bottom: 16px;
-}
-
-.executeCommandItem {
+.footer {
   display: flex;
-  margin-bottom: 8px;
-  align-items: center;
-
-  .dangerButton {
-    margin-left: 8px;
-  }
-}
-
-.checkboxContainer {
-  margin-bottom: 16px;
-}
-
-.checkboxLabel {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.checkbox {
-  margin-right: 8px;
-}
-
-.helpText {
-  margin-top: 8px;
-  font-size: 14px;
-  color: #4a5568;
-}
-
-.actionButtons {
-  margin-top: 16px;
-}
-
-.highlighted {
-  animation: highlight 3s ease;
-  background-color: rgba(255, 215, 0, 0.3) !important;
-  border: 2px solid gold !important;
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.7) !important;
-}
-
-@keyframes highlight {
-  0%, 100% {
-    background-color: transparent;
-    border-color: transparent;
-    box-shadow: none;
-  }
-  20%, 80% {
-    background-color: rgba(255, 215, 0, 0.3);
-    border-color: gold;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
-  }
-}
-
-.itemContainer.highlighted {
-  padding: 8px;
-  margin: 4px 0;
-  border-radius: 4px;
-}
-
-.dragHandleArea {
-  display: flex;
-  align-items: center;
-  margin-right: 10px;
-  cursor: grab;
-}
-
-.dragHandle {
-  color: #a0aec0;
-  font-size: 18px;
-  padding: 0 4px;
-
-  &:hover {
-    color: #4a5568;
-  }
-}
-
-// Styling for draggable elements
-.dragging {
-  opacity: 0.7;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  background-color: #f7fafc;
-  border: 1px dashed #3182ce !important;
-}
-
-// Enhanced highlighted element styling
-.flashHighlight {
-  animation: flashHighlight 1s ease;
-}
-
-@keyframes flashHighlight {
-  0%, 100% {
-    background-color: transparent;
-  }
-  50% {
-    background-color: rgba(255, 215, 0, 0.4);
-  }
-}
-
-// Improve layout of item containers with drag handles
-.itemContainer {
-  display: flex;
-  align-items: flex-start;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  margin-bottom: 12px;
-  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
-
-  &:hover {
-    border-color: #cbd5e0;
-    background-color: #f8f9fa;
-  }
-}
-
-// Improve execute command items layout
-.executeCommandItem {
-  display: flex;
-  margin-bottom: 8px;
-  align-items: center;
-  background-color: #f7fafc;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #e2e8f0;
-
-  input {
-    flex: 1;
-    margin-right: 8px;
-  }
-
-  .dangerButton {
-    padding: 6px 12px;
-    white-space: nowrap;
-  }
-}
-
-// Styling for subcommand lists
-.subcommandsList {
-  padding-left: 20px;
-  margin: 10px 0;
-}
-
-.subcommandItem {
-  margin-bottom: 8px;
-}
-
-.subcommandNode {
-  padding: 6px 10px;
-  background-color: #f0f5ff;
-  border-radius: 4px;
-  cursor: pointer;
-  display: inline-block;
-  margin-bottom: 6px;
-  font-weight: 500;
-
-  &:hover {
-    background-color: #e6effd;
-  }
-}
-
-// Styling for option lists in tree view
-.optionsList {
-  padding-left: 20px;
-  margin: 6px 0;
-}
-
-.optionItem {
-  margin-bottom: 6px;
-}
-
-.optionLabel {
-  display: inline-block;
-  padding: 4px 8px;
-  background-color: #f0fff4;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-
-  &:hover {
-    background-color: #e6ffed;
-  }
-}
-
-// Styling for choice lists
-.choicesList {
-  padding-left: 14px;
-  margin: 4px 0;
-  font-size: 13px;
-}
-
-.choiceItem {
-  padding: 2px 0;
-}
-
-.defaultBadge {
-  background-color: #ebf8ff;
-  color: #2c5282;
-  padding: 0px 4px;
-  border-radius: 4px;
-  font-size: 11px;
-  margin-left: 4px;
-}
-
-.defaultValue {
-  font-size: 12px;
-  color: #4a5568;
-  font-style: italic;
-  margin-left: 8px;
-}
-
-// Tree view styling
-.treeList {
-  list-style: none;
-  padding-left: 0;
-}
-
-.treeItem {
-  margin-bottom: 12px;
-}
-
-.treeNode {
-  padding: 8px 12px;
-  background-color: #ebf8ff;
-  border-radius: 4px;
-  cursor: pointer;
-  display: inline-block;
-  margin-bottom: 8px;
-  font-weight: 600;
-
-  &:hover {
-    background-color: #bee3f8;
-  }
-}
-
-.commandTextArea {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-family: "Consolas", monospace;
-  font-size: 14px;
-  resize: vertical;
-  min-height: 80px;
-  flex: 1;
-}
-
-.languageSelector {
-  margin-bottom: 15px;
-
-  .selectInput {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    font-size: 14px;
-    background-color: #fff;
-  }
+  justify-content: flex-end;
+  padding-top: 4px;
 }

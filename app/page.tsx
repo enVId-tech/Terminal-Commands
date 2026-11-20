@@ -1,1103 +1,275 @@
-// app/page.tsx
 'use client';
 
-import React, {useEffect, useRef, useState} from 'react';
-import CommandForm from './_components/CommandForm';
-import {Command, CommandConfig, CommandOption, SubCommand} from './types/commands';
-import styles from '@/styles/home.module.scss';
-import {useRouter} from 'next/navigation';
-import yaml from 'js-yaml';
-import {DragDropContext, Draggable, Droppable, DropResult} from '@hello-pangea/dnd';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
+import NodeForm from './_components/NodeForm';
+import Outline from './_components/Outline';
+import RawEditor from './_components/RawEditor';
+import { configFilename, formatFromFilename, parseConfig, serializeConfig, type ConfigFormat } from './lib/config-io';
+import { exampleConfig } from './lib/example';
+import { useDraft } from './lib/use-draft';
+import type { Command, CommandConfig } from './types/commands';
+import styles from '../styles/home.module.scss';
+
+type Notice = { kind: 'success' | 'error'; text: string };
+type View = 'visual' | 'raw';
+
+/** Where the selected index ends up after dragging an item from one position to another. */
+function indexAfterMove(selected: number, from: number, to: number): number {
+  if (selected === from) return to;
+  if (from < selected && selected <= to) return selected - 1;
+  if (to <= selected && selected < from) return selected + 1;
+  return selected;
+}
 
 export default function Home() {
-  const [config, setConfig] = useState<CommandConfig>({ commands: [] });
-  const [tempConfig, setTempConfig] = useState<CommandConfig>({ commands: [] });
-  const [isLoading, setIsLoading] = useState(true);
-  // const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('editor');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [configFormat, setConfigFormat] = useState<'json' | 'yaml'>('yaml');
-  // const [saveLocalPath, setSaveLocalPath] = useState<string>('./data');
-  const [showPreview, setShowPreview] = useState<boolean>(false);
-  const [selectedCommand, setSelectedCommand] = useState<number | null>(null);
-  const [rawConfigValid, setRawConfigValid] = useState<boolean>(true);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
-  const [highlightedElement, setHighlightedElement] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [config, setConfig] = useDraft();
+  const [selected, setSelected] = useState<number | null>(0);
+  const [view, setView] = useState<View>('visual');
+  const [format, setFormat] = useState<ConfigFormat>('yaml');
+  const [showOutline, setShowOutline] = useState(false);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [fileDrag, setFileDrag] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
 
+  const commands = config.commands;
+  const current = selected !== null ? commands[selected] : undefined;
+
+  const say = useCallback((kind: Notice['kind'], text: string) => setNotice({ kind, text }), []);
+
+  // Messages disappear on their own.
   useEffect(() => {
-    const loadCommands = async () => {
-      try {
-        const response = await fetch('/api/commands');
-        if (!response.ok) throw new Error('Failed to load commands');
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), notice.kind === 'error' ? 6000 : 3000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
-        const data = await response.json();
-        setConfig(data);
-        setTempConfig(data);
-
-        // Detect format based on the file extension in the response
-        if (response.headers.get('X-Config-Format')) {
-          setConfigFormat(response.headers.get('X-Config-Format') as 'json' | 'yaml');
-        }
-      } catch (error) {
-        console.error('Error loading commands:', error);
-        setErrorMessage('Failed to load commands. Using example template.');
-        await loadExampleCommands();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCommands().then(r => r);
-  }, []);
-
+  // After the outline asks for an element, scroll to it and fade the highlight.
   useEffect(() => {
-    // Update tempConfig whenever config changes
-    setTempConfig(config);
-  }, [config]);
+    if (!highlighted) return;
+    document.querySelector(`[data-id="${highlighted}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timer = setTimeout(() => setHighlighted(null), 2500);
+    return () => clearTimeout(timer);
+  }, [highlighted]);
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    // Don't set isDragging if we're dragging a tree item
-    if (document.body.classList.contains('dragging-active')) {
-      return;
-    }
+  const replaceCommands = (next: Command[]) => setConfig({ ...config, commands: next });
 
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
+  const navigateTo = (commandIndex: number, path: string[]) => {
+    setView('visual');
+    setSelected(commandIndex);
+    const base = `cmd-${commandIndex}`;
+    setHighlighted(path.length ? `${base}-${path.join('-')}` : base);
   };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files.length === 0) return;
-
-    const file = files[0];
-    handleFile(file);
-  };
-
-// Add a helper function to handle the file
-  const handleFile = (file: File) => {
-    // Check if it's a JSON or YAML file
-    if (!file.name.toLowerCase().match(/\.(json|ya?ml)$/)) {
-      setErrorMessage('Only JSON, YAML or YML files are supported');
-      return;
-    }
-
-    // Set format based on file extension
-    if (file.name.toLowerCase().endsWith('.yaml') || file.name.toLowerCase().endsWith('.yml')) {
-      setConfigFormat('yaml');
-    } else {
-      setConfigFormat('json');
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        // For YAML files, we need to send to API for parsing
-        if (configFormat === 'yaml') {
-          const response = await fetch('/api/commands/parse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: event.target?.result
-          });
-
-          if (!response.ok) {
-            console.error('Failed to parse YAML');
-            return;
-          }
-          const importedConfig = await response.json();
-          setConfig(importedConfig);
-          setTempConfig(importedConfig);
-        } else {
-          // For JSON files, parse directly
-          const importedConfig = JSON.parse(event.target?.result as string);
-          setConfig(importedConfig);
-          setTempConfig(importedConfig);
-        }
-
-        setSuccessMessage('Configuration imported successfully');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (error) {
-        console.error('Error parsing file:', error);
-        setErrorMessage(`Invalid ${configFormat.toUpperCase()} file format`);
-        setTimeout(() => setErrorMessage(null), 3000);
-      }
-    };
-    reader.onerror = () => {
-      setErrorMessage('Error reading file');
-    };
-    reader.readAsText(file);
-  };
-
-// In your page.tsx file, modify the navigateToElement function
-  const navigateToElement = (commandIndex: number, path: string[] = []) => {
-    // First, make sure we're in the editor tab
-    setActiveTab('editor');
-
-    // Select the command
-    selectCommand(commandIndex);
-
-    console.log(`Navigating to command #${commandIndex} with path:`, path);
-
-    // Set the appropriate tab within the command/subcommand
-    setTimeout(() => {
-      // Find the element based on the path
-      const highlightId = path.length > 0
-          ? `cmd-${commandIndex}-${path.join('-')}`
-          : `cmd-${commandIndex}`;
-
-      console.log(`Looking for element with data-id="${highlightId}"`);
-
-      // Highlight the element
-      setHighlightedElement(highlightId);
-
-      // Print all data-id attributes for debugging
-      console.log("All data-id elements in DOM:",
-          Array.from(document.querySelectorAll('[data-id]'))
-              .map(el => el.getAttribute('data-id')));
-
-      // More debugging
-      setTimeout(() => {
-        const element = document.querySelector(`[data-id="${highlightId}"]`);
-        console.log(`Element found:`, element);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          console.log("Element is visible, scrolling to it");
-
-          // Add a visual flash to make it very obvious
-          element.classList.add(styles.flashHighlight);
-          setTimeout(() => element.classList.remove(styles.flashHighlight), 1000);
-
-          // Remove highlight after a few seconds
-          setTimeout(() => setHighlightedElement(null), 3000);
-        } else {
-          console.log("Element NOT found in DOM!");
-        }
-      }, 500); // Increase timeout to 500ms
-    }, 100); // Increase timeout to 100ms for selection to complete
-  };
-
-  const loadExampleCommands = async () => {
-    try {
-      // Example configuration
-      const exampleConfig: CommandConfig = {
-        commands: [
-          {
-            name: "Build Project",
-            description: "Build the project with specified configuration",
-            options: [
-              {
-                type: "list",
-                name: "buildType",
-                message: "Select build configuration",
-                choices: ["development", "production", "staging"],
-                default: "development"
-              },
-              {
-                type: "confirm",
-                name: "minify",
-                message: "Minify the output?",
-                default: false
-              }
-            ],
-            executeCommands: [
-              "npm run build -- --env={{buildType}} {{#if minify}}--minify{{/if}}",
-              "echo Build completed for {{buildType}} environment"
-            ],
-            executeParallel: false,
-            requireExecutionChoice: true
-          },
-          {
-            name: "Install & Setup",
-            description: "Install dependencies and setup the environment",
-            executeCommands: [
-              "npm install",
-              "npx husky install",
-              "cp .env.example .env"
-            ],
-            executeParallel: true,
-            requireExecutionChoice: true
-          },
-          {
-            name: "Docker Operations",
-            description: "Docker-related commands",
-            subcommands: [
-              {
-                name: "Start Containers",
-                executeCommands: [
-                  "docker-compose up -d",
-                  "echo Docker containers started successfully"
-                ],
-                executeParallel: false,
-                requireExecutionChoice: true
-              },
-              {
-                name: "Database Setup",
-                options: [
-                  {
-                    type: "list",
-                    name: "dbType",
-                    message: "Select database type",
-                    choices: ["mysql", "postgres", "mongodb"],
-                    default: "postgres"
-                  },
-                  {
-                    type: "input",
-                    name: "dbName",
-                    message: "Enter database name",
-                    default: "myapp"
-                  }
-                ],
-                executeCommands: [
-                  "docker run -d --name {{dbName}} {{dbType}}",
-                  "echo Database {{dbName}} initialized with {{dbType}}"
-                ],
-                postExecuteCommands: [
-                  "echo Database setup complete"
-                ],
-                postExecuteParallel: false
-              }
-            ]
-          }
-        ]
-      };
-
-      setConfig(exampleConfig);
-      setTempConfig(exampleConfig);
-    } catch (error) {
-      console.error('Error setting up example commands:', error);
-    }
-  };
-
-  // const handleSave = async () => {
-  //   setIsSaving(true);
-  //   setErrorMessage(null);
-  //   setSuccessMessage(null);
-  //
-  //   try {
-  //     const response = await fetch('/api/commands', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'X-Config-Format': configFormat,
-  //         'X-Save-Path': saveLocalPath
-  //       },
-  //       body: JSON.stringify(config)
-  //     });
-  //
-  //     if (!response.ok) throw new Error('Failed to save commands');
-  //
-  //     setSuccessMessage(`Configuration saved successfully to ${saveLocalPath}/commands.${configFormat}`);
-  //     setTimeout(() => setSuccessMessage(null), 3000);
-  //   } catch (error) {
-  //     console.error('Error saving commands:', error);
-  //     setErrorMessage('Failed to save commands');
-  //   } finally {
-  //     setIsSaving(false);
-  //   }
-  // };
 
   const addCommand = () => {
-    const newCommand: Command = {
-      name: 'New Command',
-      description: 'Description for the new command',
-      executeCommands: [''],
-      executeParallel: false,
-      requireExecutionChoice: false
-    };
-    setConfig({ ...config, commands: [...config.commands, newCommand] });
-  };
-
-  const updateCommand = (index: number, updatedCommand: Command) => {
-    const commands = [...config.commands];
-    commands[index] = updatedCommand;
-    setConfig({ ...config, commands });
+    replaceCommands([...commands, { name: 'New command', executeCommands: [''] }]);
+    setSelected(commands.length);
   };
 
   const removeCommand = (index: number) => {
-    const commands = [...config.commands];
-    commands.splice(index, 1);
-    setConfig({ ...config, commands });
-    if (selectedCommand === index) {
-      setSelectedCommand(null);
+    replaceCommands(commands.filter((_, i) => i !== index));
+    setSelected(null);
+  };
+
+  const importFile = async (file: File) => {
+    const detected = formatFromFilename(file.name);
+    if (!detected) return say('error', 'Only .json, .yaml and .yml files can be imported.');
+    try {
+      setConfig(parseConfig(await file.text(), detected));
+      setFormat(detected);
+      setSelected(0);
+      say('success', `Imported ${file.name}`);
+    } catch (error) {
+      say('error', `Could not import ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
-  const handleImportClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    handleFile(file);
-
-    // Reset the file input so the same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleExportConfig = () => {
-    let configData: string;
-    let mimeType: string;
-    let filename: string;
-
-    if (configFormat === 'yaml') {
-      configData = yaml.dump(config);
-      mimeType = 'application/yaml';
-      filename = 'commands.yaml';
-    } else {
-      configData = JSON.stringify(config, null, 2);
-      mimeType = 'application/json';
-      filename = 'commands.json';
-    }
-
-    const blob = new Blob([configData], { type: mimeType });
+  const exportFile = () => {
+    const blob = new Blob([serializeConfig(config, format)], { type: format === 'json' ? 'application/json' : 'application/yaml' });
     const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const link = Object.assign(document.createElement('a'), { href: url, download: configFilename(format) });
+    link.click();
     URL.revokeObjectURL(url);
   };
 
-  const handleLoadExampleConfig = async () => {
-    setIsLoading(true);
-    await loadExampleCommands();
-    setSuccessMessage('Example configuration loaded');
-    setTimeout(() => setSuccessMessage(null), 3000);
-    setIsLoading(false);
+  const loadExample = () => {
+    setConfig(exampleConfig);
+    setSelected(0);
+    say('success', 'Example loaded');
   };
 
-  const toggleConfigFormat = () => {
-    setConfigFormat(prevFormat => prevFormat === 'json' ? 'yaml' : 'json');
+  const clearAll = () => {
+    if (commands.length > 0 && !window.confirm('Remove every command from the editor?')) return;
+    setConfig({ commands: [] } satisfies CommandConfig);
+    setSelected(null);
   };
 
-  // const handlePathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   setSaveLocalPath(e.target.value);
-  // };
-
-  const togglePreview = () => {
-    setShowPreview(!showPreview);
+  const onSidebarDragEnd = (result: DropResult) => {
+    if (!result.destination || result.destination.index === result.source.index) return;
+    const { index: from } = result.source;
+    const { index: to } = result.destination;
+    const next = [...commands];
+    next.splice(to, 0, ...next.splice(from, 1));
+    replaceCommands(next);
+    if (selected !== null) setSelected(indexAfterMove(selected, from, to));
   };
 
-  const selectCommand = (index: number) => {
-    setSelectedCommand(index);
+  // Dropping a file anywhere on the page imports it. Only react to real files so in-page dragging is unaffected.
+  const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes('Files');
+  const onDragEnter = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
+    dragDepth.current++;
+    setFileDrag(true);
   };
-
-  if (isLoading) {
-    return (
-        <div className={styles.container}>
-          <div className={styles.loadingState}>
-            <div className={styles.spinner}></div>
-            <p>Loading commands...</p>
-          </div>
-        </div>
-    );
-  }
-
-  const renderSelectionTree = () => {
-    if (config.commands.length === 0) {
-      return <p>No commands defined</p>;
-    }
-
-    // Helper function to recursively render subcommands and their nested subcommands
-    const renderSubcommands = (
-        subcommands: SubCommand[],
-        commandIndex: number,
-        parentPath: string[] = []
-    ) => {
-      const droppableId = `tree-${commandIndex}-${parentPath.join('-')}`;
-      const droppableType = `tree-subcommands-${commandIndex}-${parentPath.join('-')}`;
-
-      return (
-          <Droppable droppableId={droppableId} type={droppableType}>
-            {(provided) => (
-                <ul className={styles.subcommandsList} ref={provided.innerRef} {...provided.droppableProps}>
-                  {subcommands.map((subcommand, subcommandIndex) => {
-                    // Create a path for this subcommand
-                    const subcommandPath = [...parentPath, `subcommand-${subcommandIndex}`];
-                    const subcommandId = `tree-subcommand-${commandIndex}-${subcommandPath.join('-')}`;
-
-                    return (
-                        <Draggable
-                            key={subcommandId}
-                            draggableId={subcommandId}
-                            index={subcommandIndex}
-                        >
-                          {(provided, snapshot) => (
-                              <li
-                                  className={`${styles.subcommandItem} ${snapshot.isDragging ? styles.dragging : ''}`}
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                              >
-                                <div
-                                    className={styles.subcommandNode}
-                                    onClick={() => navigateToElement(commandIndex, subcommandPath)}
-                                >
-                                  <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
-                                  {subcommand.name}
-                                </div>
-
-                                {/* Render options for this subcommand */}
-                                {subcommand.options && Array.isArray(subcommand.options) && subcommand.options.length > 0 && (
-                                    <Droppable
-                                        droppableId={`tree-options-${commandIndex}-${subcommandPath.join('-')}`}
-                                        type="tree-options"
-                                    >
-                                      {(provided) => (
-                                          <ul className={styles.optionsList} ref={provided.innerRef} {...provided.droppableProps}>
-                                            {subcommand.options && Array.isArray(subcommand.options) && subcommand.options.map((opt, optIndex) => {
-                                              if (!opt) return null;
-                                              const optPath = [...subcommandPath, `option-${optIndex}`];
-                                              const optId = `tree-option-${commandIndex}-${optPath.join('-')}`;
-
-                                              return (
-                                                  <Draggable
-                                                      key={optId}
-                                                      draggableId={optId}
-                                                      index={optIndex}
-                                                  >
-                                                    {(provided, snapshot) => (
-                                                        <li
-                                                            className={`${styles.optionItem} ${snapshot.isDragging ? styles.dragging : ''}`}
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                        >
-                      <span
-                          className={styles.optionName}
-                          onClick={() => navigateToElement(commandIndex, optPath)}
-                      >
-                        <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
-                        {opt.name || 'Unnamed option'} ({opt.type || 'unknown'})
-                      </span>
-                                                          {renderOptionDetails(opt)}
-                                                        </li>
-                                                    )}
-                                                  </Draggable>
-                                              );
-                                            })}
-                                            {provided.placeholder}
-                                          </ul>
-                                      )}
-                                    </Droppable>
-                                )}
-
-                                {/* Recursively render nested subcommands */}
-                                {subcommand.subcommands && subcommand.subcommands.length > 0 &&
-                                    renderSubcommands(subcommand.subcommands, commandIndex, [...subcommandPath, 'subcommands'])}
-                              </li>
-                          )}
-                        </Draggable>
-                    );
-                  })}
-                  {provided.placeholder}
-                </ul>
-            )}
-          </Droppable>
-      );
-    };
-
-    // Helper function for rendering option details
-    const renderOptionDetails = (opt: CommandOption) => {
-      if (!opt) return null;
-
-      return (
-          <>
-      <span className={styles.optionType}>
-        Type: {opt.type || 'unknown'}
-      </span>
-            {opt.type === 'list' && opt.choices && (
-                <span className={styles.optionChoices}>
-          Choices: {opt.choices.join(', ')}
-        </span>
-            )}
-            {opt.default !== undefined && (
-                <span className={styles.optionDefault}>
-          Default: {typeof opt.default === 'boolean' ? (opt.default ? 'Yes' : 'No') : opt.default}
-        </span>
-            )}
-          </>
-      );
-    };
-
-    return (
-        <div className={styles.selectionTree}>
-          <h3>Command Selection Tree</h3>
-          <Droppable droppableId="tree-commands-list" type="tree-commands">
-            {(provided) => (
-                <ul className={styles.treeList} ref={provided.innerRef} {...provided.droppableProps}>
-                  {config.commands.map((cmd, idx) => (
-                      <Draggable
-                          key={`tree-cmd-${idx}`}
-                          draggableId={`tree-cmd-${idx}`}
-                          index={idx}
-                      >
-                        {(provided, snapshot) => (
-                            <li
-                                className={`${styles.treeItem} ${snapshot.isDragging ? styles.dragging : ''}`}
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                            >
-                              <div
-                                  className={styles.treeNode}
-                                  onClick={() => navigateToElement(idx)}
-                              >
-                                <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
-                                {cmd.name}
-                              </div>
-
-                              {cmd.options && Array.isArray(cmd.options) && cmd.options.length > 0 && (
-                                  <Droppable droppableId={`tree-options-${idx}`} type="tree-options">
-                                    {(provided) => (
-                                        <ul className={styles.optionsList} ref={provided.innerRef} {...provided.droppableProps}>
-                                          {cmd.options && Array.isArray(cmd.options) && cmd.options.map((opt, optIndex) => {
-                                            if (!opt) return null;
-
-                                            const optionPath = [`option-${optIndex}`];
-                                            const optionId = `tree-option-${idx}-${optionPath.join('-')}`;
-
-                                            return (
-                                                <Draggable
-                                                    key={optionId}
-                                                    draggableId={optionId}
-                                                    index={optIndex}
-                                                >
-                                                  {(provided, snapshot) => (
-                                                      <li
-                                                          className={`${styles.optionItem} ${snapshot.isDragging ? styles.dragging : ''}`}
-                                                          ref={provided.innerRef}
-                                                          {...provided.draggableProps}
-                                                      >
-                      <span
-                          className={styles.optionName}
-                          onClick={() => navigateToElement(idx, optionPath)}
-                      >
-                        <span {...provided.dragHandleProps} className={styles.treeDragHandle}>⠿</span>
-                        {opt.name || 'Unnamed option'} ({opt.type || 'unknown'})
-                      </span>
-                                                        {renderOptionDetails(opt)}
-                                                      </li>
-                                                  )}
-                                                </Draggable>
-                                            );
-                                          })}
-                                          {provided.placeholder}
-                                        </ul>
-                                    )}
-                                  </Droppable>
-                              )}
-
-                              {cmd.subcommands && cmd.subcommands.length > 0 &&
-                                  renderSubcommands(cmd.subcommands, idx, ["subcommands"])}
-                            </li>
-                        )}
-                      </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </ul>
-            )}
-          </Droppable>
-        </div>
-    );
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setFileDrag(false);
   };
-
-  const handleDragStart = () => {
-    // Add a class to the body element to track drag state
-    document.body.classList.add('dragging-active');
-  };
-
-  // Handle command reordering
-  const handleDragEnd = (result: DropResult) => {
-    // Remove the class when dragging ends
-    document.body.classList.remove('dragging-active');
-
-    // Only set isDragging to false if we're NOT in a tree drag operation
-    if (!result.draggableId.startsWith('tree-')) {
-      setIsDragging(false);
-    }
-
-    if (!result.destination) return;
-
-    const { source, destination, type } = result;
-
-    // If dropped in the same position, do nothing
-    if (source.index === destination.index && source.droppableId === destination.droppableId) return;
-
-    setTimeout(() => {
-      // Handle main command reordering
-      if (type === 'commands' || type === 'tree-commands') {
-        const newCommands = [...config.commands];
-        const [removed] = newCommands.splice(source.index, 1);
-        newCommands.splice(destination.index, 0, removed);
-
-        setConfig({
-          ...config,
-          commands: newCommands
-        });
-
-        // Update selected command index if it was affected
-        if (selectedCommand !== null) {
-          if (selectedCommand === source.index) {
-            setSelectedCommand(destination.index);
-          } else if (
-              selectedCommand > source.index && selectedCommand <= destination.index
-          ) {
-            setSelectedCommand(selectedCommand - 1);
-          } else if (
-              selectedCommand < source.index && selectedCommand >= destination.index
-          ) {
-            setSelectedCommand(selectedCommand + 1);
-          }
-        }
-      }
-      // Handle options reordering
-      else if (type === 'tree-options') {
-        // Parse the droppableId to get command index and path
-        const sourceParts = source.droppableId.split('-');
-        const destParts = destination.droppableId.split('-');
-
-        // Create a deep copy of commands
-        const newCommands = JSON.parse(JSON.stringify(config.commands));
-
-        // Get the source option
-        let sourceTarget = newCommands[parseInt(sourceParts[2], 10)];
-        const sourcePath = sourceParts.slice(3);
-
-        // Navigate through the source path to find the options array
-        if (sourcePath.length > 0) {
-          for (let i = 0; i < sourcePath.length; i += 2) {
-            if (sourcePath[i] === 'subcommand') {
-              sourceTarget = sourceTarget.subcommands[parseInt(sourcePath[i+1], 10)];
-            }
-          }
-        }
-
-        // Ensure source has options array before accessing it
-        if (!sourceTarget.options) {
-          sourceTarget.options = [];
-        }
-
-        // Remove the option from source
-        const [removedOption] = sourceTarget.options.splice(source.index, 1);
-
-        // If source and destination are the same, we're just reordering within the same list
-        if (source.droppableId === destination.droppableId) {
-          sourceTarget.options.splice(destination.index, 0, removedOption);
-        } else {
-          // Different target - we need to find the destination options array
-          let destTarget = newCommands[parseInt(destParts[2], 10)];
-          const destPath = destParts.slice(3);
-
-          // Navigate through the destination path
-          if (destPath.length > 0) {
-            for (let i = 0; i < destPath.length; i += 2) {
-              if (destPath[i] === 'subcommand') {
-                destTarget = destTarget.subcommands[parseInt(destPath[i+1], 10)];
-              }
-            }
-          }
-
-          // Ensure options array exists before splicing
-          if (!destTarget.options) {
-            destTarget.options = [];
-          }
-
-          // Add the option to destination
-          destTarget.options.splice(destination.index, 0, removedOption);
-        }
-
-        setConfig({
-          ...config,
-          commands: newCommands
-        });
-      }
-      // Handle subcommands reordering
-      else if (type.startsWith('tree-subcommands-')) {
-        const commandIndex = parseInt(type.split('-')[2], 10);
-        const pathParts = type.split('-').slice(3);
-
-        // Create a deep copy of commands
-        const newCommands = JSON.parse(JSON.stringify(config.commands));
-        const targetCommand = newCommands[commandIndex];
-
-        // Navigate to the correct subcommands array based on path
-        if (pathParts.length > 0) {
-          let current = targetCommand;
-          const path = [];
-
-          for (let i = 0; i < pathParts.length; i++) {
-            path.push(pathParts[i]);
-
-            if (pathParts[i] === 'subcommands') {
-              continue;
-            }
-
-            if (path[path.length - 2] === 'subcommands') {
-              const index = parseInt(pathParts[i].split('-')[1], 10);
-              current = current.subcommands[index];
-            }
-          }
-
-          // Move the subcommand
-          const [removed] = current.subcommands.splice(source.index, 1);
-          current.subcommands.splice(destination.index, 0, removed);
-        } else {
-          // Direct subcommands of a command
-          const [removed] = targetCommand.subcommands.splice(source.index, 1);
-          targetCommand.subcommands.splice(destination.index, 0, removed);
-        }
-
-        setConfig({
-          ...config,
-          commands: newCommands
-        });
-      }
-    }, 0);
+  const onDrop = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setFileDrag(false);
+    const file = e.dataTransfer.files[0];
+    if (file) void importFile(file);
   };
 
   return (
-      <div
-          className={styles.container}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-      >
-        {isDragging && (
-            <div className={styles.dragOverlay}>
-              <div className={styles.dropZone}>
-                <div className={styles.dropIcon}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                </div>
-                <p>Drop your config file here</p>
-                <span className={styles.supportedFormats}>.json, .yaml, .yml</span>
-              </div>
-            </div>
-        )}
-        <div className={styles.header}>
-          <h1 className={styles.heading}>CLI Command Builder</h1>
-          <div className={styles.headerButtons}>
-            <button
-                className={styles.actionButton}
-                onClick={() => router.push('/documentation')}
-            >
-              Documentation
-            </button>
-            <button
-                className={styles.saveButton}
-                // onClick={handleSave}
-                // disabled={isSaving}
-                onClick={handleExportConfig}
-            >
-              Export Configuration
-              {/*{isSaving ? 'Saving...' : 'Export Configuration'}*/}
-            </button>
-          </div>
+    <div className={styles.page} onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDragOver={(e) => hasFiles(e) && e.preventDefault()} onDrop={onDrop}>
+      {fileDrag && (
+        <div className={styles.dropOverlay} aria-hidden="true">
+          <div className={styles.dropCard}>Drop a .json, .yaml or .yml file to import it</div>
         </div>
+      )}
 
-        {errorMessage && (
-            <div className={styles.errorMessage}>
-              {errorMessage}
-              <button
-                  className={styles.closeButton}
-                  onClick={() => setErrorMessage(null)}
-              >
-                ×
-              </button>
-            </div>
-        )}
-
-        {successMessage && (
-            <div className={styles.successMessage}>
-              {successMessage}
-              <button
-                  className={styles.closeButton}
-                  onClick={() => setSuccessMessage(null)}
-              >
-                ×
-              </button>
-            </div>
-        )}
-
-        <div className={styles.importExportSection}>
-          <h2>Configuration Management</h2>
-          <div className={styles.buttonGroup}>
-            <button className={styles.button} onClick={handleImportClick}>
-              Import Config
-            </button>
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileImport}
-                accept=".json,.yml,.yaml"
-                style={{display: 'none'}}
-            />
-            <button className={styles.button} onClick={handleExportConfig}>
-              Export Config
-            </button>
-            <button className={styles.button} onClick={handleLoadExampleConfig}>
-              Load Example Config
-            </button>
-            <button className={styles.button} onClick={toggleConfigFormat}>
-              Format: {configFormat.toUpperCase()}
-            </button>
-            <button className={styles.button} onClick={togglePreview}>
-              {showPreview ? 'Hide' : 'Show'} Selection Tree
-            </button>
-            <button className={styles.button} onClick={() => setConfig({commands: []})}>
-              Clear Selection
-            </button>
-          </div>
-
-          {/*  <div className={styles.savePath}>*/}
-          {/*    <label htmlFor="savePath">Local Save Path:</label>*/}
-          {/*    <input*/}
-          {/*        type="text"*/}
-          {/*        id="savePath"*/}
-          {/*        value={saveLocalPath}*/}
-          {/*        onChange={handlePathChange}*/}
-          {/*        placeholder="./data"*/}
-          {/*    />*/}
-          {/*  </div>*/}
+      <header className={styles.header}>
+        <div>
+          <h1 className={styles.title}>Terminal Commands</h1>
+          <p className={styles.subtitle}>Design a command workflow here, then run it in your terminal.</p>
         </div>
-
-        {showPreview && (
-            <div className={styles.previewSection}>
-              <div className={styles.previewHeader}>
-                <h2>
-                  Command Preview
-                  <button onClick={togglePreview} className={styles.closeButton}>×</button>
-                </h2>
-              </div>
-              <div className={styles.previewContent}>
-                <DragDropContext
-                    onDragEnd={handleDragEnd}
-                    onDragStart={handleDragStart}
-                >
-                  {renderSelectionTree()}
-                </DragDropContext>
-              </div>
-            </div>
-        )}
-
-        <div className={styles.tabs}>
-          <div
-              onClick={() => setActiveTab('editor')}
-              className={`${styles.tab} ${activeTab === 'editor' ? styles.active : ''}`}
-          >
-            Visual Editor
-          </div>
-          <div
-              onClick={() => setActiveTab('raw')}
-              className={`${styles.tab} ${activeTab === 'raw' ? styles.active : ''}`}
-          >
-            Raw {configFormat.toUpperCase()}
-          </div>
-        </div>
-
-        {activeTab === 'editor' && (
-            <div className={styles.box}>
-              <p className={styles.description}>
-                Build interactive command-line interfaces with easy-to-use forms.
-                Your commands will be saved as <code>commands.{configFormat}</code>.
-              </p>
-
-              {config.commands.length === 0 ? (
-                  <div className={styles.emptyState}>
-                    <p>No commands have been created yet.</p>
-                    <button className={styles.button} onClick={addCommand}>
-                      Create Your First Command
-                    </button>
-                    <p className={styles.emptyStateHelp}>
-                      You can also load example configurations using the &#34;Load Example Config&#34; button above.
-                    </p>
-                  </div>
-              ) : (
-                  <div className={styles.commandList}>
-                    <DragDropContext
-                        onDragEnd={handleDragEnd}
-                    >
-                      <Droppable
-                          droppableId="commands-list"
-                          type="commands"
-                          isCombineEnabled={false}
-                          ignoreContainerClipping={false}
-                      >
-                        {(provided) => (
-                            <div
-                                className={styles.commandSidebar}
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                            >
-                              {config.commands.map((command, index) => (
-                                  <Draggable
-                                      key={`command-item-${index}`}
-                                      draggableId={`command-item-${index}`}
-                                      index={index}
-                                  >
-                                    {(provided, snapshot) => (
-                                        <div
-                                            ref={provided.innerRef}
-                                            {...provided.draggableProps}
-                                            {...provided.dragHandleProps}
-                                            className={`
-                ${styles.commandItem}
-                ${selectedCommand === index ? styles.selectedCommand : ''}
-                ${snapshot.isDragging ? styles.dragging : ''}
-              `}
-                                            onClick={() => selectCommand(index)}
-                                        >
-              <span className={styles.dragHandle}>
-                ⠿
-              </span>
-                                          {command.name}
-                                        </div>
-                                    )}
-                                  </Draggable>
-                              ))}
-                              {provided.placeholder}
-                              <button className={styles.addCommandButton} onClick={addCommand}>
-                                + Add Command
-                              </button>
-                            </div>
-                        )}
-                      </Droppable>
-
-                      <div className={styles.commandEditor}>
-                        {selectedCommand !== null ? (
-                            <div className={styles.commandBox}>
-                              <CommandForm
-                                  command={config.commands[selectedCommand]}
-                                  commandId={`cmd-${selectedCommand}`}
-                                  onUpdate={(updatedCommand) => updateCommand(selectedCommand, updatedCommand)}
-                                  onRemove={() => removeCommand(selectedCommand)}
-                                  highlightedElement={highlightedElement}
-                              />
-                            </div>
-                        ) : (
-                            <div className={styles.noCommandSelected}>
-                              <p>Select a command from the list or create a new one</p>
-                            </div>
-                        )}
-                      </div>
-                    </DragDropContext>
-                  </div>
-              )}
-            </div>
-        )}
-
-        {activeTab === 'raw' && (
-            <div className={styles.rawEditorContainer}>
-              <div className={styles.formatSelector}>
-                <label>
-                  <input
-                      type="radio"
-                      value="json"
-                      checked={configFormat === 'json'}
-                      onChange={() => setConfigFormat('json')}
-                  />
-                  JSON
-                </label>
-                <label>
-                  <input
-                      type="radio"
-                      value="yaml"
-                      checked={configFormat === 'yaml'}
-                      onChange={() => setConfigFormat('yaml')}
-                  />
-                  YAML
-                </label>
-              </div>
-              <textarea
-                  className={`${styles.rawEditor} ${!rawConfigValid ? styles.invalid : ''}`}
-                  value={
-                    configFormat === 'json'
-                        ? JSON.stringify(tempConfig, null, 2)
-                        : yaml.dump(tempConfig)
-                  }
-                  onChange={(e) => {
-                    setTempConfig((prev) => {
-                      try {
-                        const newConfig = configFormat === 'json'
-                            ? JSON.parse(e.target.value)
-                            : yaml.load(e.target.value);
-
-                        setRawConfigValid(true);
-                        return newConfig as CommandConfig;
-                      } catch (error: unknown) {
-                        console.error('Error parsing file:', error instanceof Error ? error.message : String(error));
-                        setErrorMessage(`Invalid ${configFormat.toUpperCase()} file format`);
-                        setTimeout(() => setErrorMessage(null), 3000);
-                        setRawConfigValid(false);
-                        // Return previous value but update the textarea content
-                        return prev;
-                      }
-                    });
-                  }}
-              />
-              <div className={styles.rawEditorControls}>
-                <button
-                    className={styles.button}
-                    disabled={!rawConfigValid}
-                    onClick={() => {
-                      setConfig(tempConfig);
-                      setSuccessMessage('Changes applied successfully');
-                      setTimeout(() => setSuccessMessage(null), 3000);
-                    }}
-                >
-                  Apply Changes
-                </button>
-                <button
-                    className={styles.buttonSecondary}
-                    onClick={() => {
-                      setTempConfig(config); // Reset to the current config
-                    }}
-                >
-                  Discard Changes
-                </button>
-              </div>
-            </div>
-        )}
-
-        <div className={styles.saveButtonContainer}>
-          <button
-              className={styles.bigSaveButton}
-              // onClick={handleSave}
-              onClick={handleExportConfig}
-              // disabled={isSaving}
-          >
-            Export Configuration
-            {/*{isSaving ? 'Saving...' : 'Export Configuration'}*/}
+        <div className={styles.headerActions}>
+          <Link href="/documentation" className={styles.secondary}>Documentation</Link>
+          <button type="button" className={styles.primary} onClick={exportFile}>
+            Export {configFilename(format)}
           </button>
         </div>
+      </header>
 
-        <div className={styles.footer}>
-          <p>Erick Tran - CLI Command Builder — Build interactive CLI tools
-            with {configFormat.toUpperCase()} configuration</p>
+      <div className={styles.live} aria-live="polite">
+        {notice && (
+          <div className={`${styles.notice} ${notice.kind === 'error' ? styles.error : styles.success}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+            {notice.text}
+            <button type="button" className={styles.dismiss} aria-label="Dismiss" onClick={() => setNotice(null)}>×</button>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.toolbar}>
+        <button type="button" className={styles.secondary} onClick={() => fileInput.current?.click()}>Import</button>
+        <input ref={fileInput} type="file" accept=".json,.yml,.yaml" hidden onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void importFile(file);
+          e.target.value = '';
+        }} />
+        <button type="button" className={styles.secondary} onClick={loadExample}>Load example</button>
+        <button type="button" className={styles.secondary} onClick={clearAll}>Clear</button>
+        <div className={styles.spacer} />
+        <div className={styles.segmented} role="group" aria-label="File format">
+          {(['yaml', 'json'] as const).map((f) => (
+            <button key={f} type="button" aria-pressed={format === f} className={format === f ? styles.on : ''} onClick={() => setFormat(f)}>
+              {f.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        <div className={styles.segmented} role="group" aria-label="Editor view">
+          <button type="button" aria-pressed={view === 'visual'} className={view === 'visual' ? styles.on : ''} onClick={() => setView('visual')}>Visual</button>
+          <button type="button" aria-pressed={view === 'raw'} className={view === 'raw' ? styles.on : ''} onClick={() => setView('raw')}>Raw</button>
         </div>
       </div>
+
+      {view === 'raw' ? (
+        // Re-created when the format changes so the text is regenerated in the new format.
+        <RawEditor key={format} config={config} format={format} onApply={(next) => { setConfig(next); say('success', 'Changes applied'); }} />
+      ) : (
+        <div className={styles.workspace}>
+          <aside className={styles.sidebar} aria-label="Commands">
+            <div className={styles.sidebarHead}>
+              <h2>Commands</h2>
+              <button type="button" className={styles.link} aria-pressed={showOutline} onClick={() => setShowOutline((v) => !v)}>
+                {showOutline ? 'List' : 'Outline'}
+              </button>
+            </div>
+
+            {showOutline ? (
+              <Outline commands={commands} onNavigate={navigateTo} />
+            ) : (
+              <DragDropContext onDragEnd={onSidebarDragEnd}>
+                <Droppable droppableId="commands" type="commands">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps} className={styles.commandList}>
+                      {commands.map((command, index) => (
+                        <Draggable key={index} draggableId={`command-${index}`} index={index}>
+                          {(drag, snapshot) => (
+                            <div
+                              ref={drag.innerRef}
+                              {...drag.draggableProps}
+                              {...drag.dragHandleProps}
+                              className={`${styles.commandItem} ${selected === index ? styles.selected : ''} ${snapshot.isDragging ? styles.dragging : ''}`}
+                              role="button"
+                              tabIndex={0}
+                              aria-current={selected === index}
+                              onClick={() => setSelected(index)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && e.target === e.currentTarget) setSelected(index);
+                              }}
+                            >
+                              <span className={styles.commandName}>{command.name || 'Untitled'}</span>
+                              {command.description && <span className={styles.commandDescription}>{command.description}</span>}
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            )}
+
+            <button type="button" className={styles.add} onClick={addCommand}>+ Add command</button>
+          </aside>
+
+          <section className={styles.editor} aria-label="Command editor">
+            {current && selected !== null ? (
+              <NodeForm
+                key={selected}
+                node={current}
+                nodeId={`cmd-${selected}`}
+                onUpdate={(updated) => replaceCommands(commands.map((c, i) => (i === selected ? updated : c)))}
+                onRemove={() => removeCommand(selected)}
+                highlightedElement={highlighted}
+              />
+            ) : (
+              <div className={styles.blank}>
+                <p>{commands.length === 0 ? 'No commands yet.' : 'Pick a command on the left to edit it.'}</p>
+                {commands.length === 0 && <button type="button" className={styles.primary} onClick={addCommand}>Create your first command</button>}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      <footer className={styles.footer}>
+        <p>
+          Your work is saved in this browser. Run it with <code>npx terminal-commands {configFilename(format)}</code>
+          {' · '}
+          <a href="https://github.com/enVId-tech/Terminal-Commands">GitHub</a>
+        </p>
+      </footer>
+    </div>
   );
 }

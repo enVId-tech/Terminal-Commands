@@ -1,232 +1,140 @@
 'use client';
 
-import React from 'react';
-import { CommandOption } from '../types/commands';
+import React, { useId } from 'react';
+import type { CommandOption } from '../types/commands';
+import styles from '../../styles/optionform.module.scss';
 
 interface OptionFormProps {
   option: CommandOption;
-  optionId?: string; // Add this prop
+  optionId?: string;
   onUpdate: (option: CommandOption) => void;
   onRemove: () => void;
-  highlightedElement?: string | null; // This prop might also be needed based on SubCommandForm usage
+  highlightedElement?: string | null;
 }
 
+const OPTION_TYPES: { value: CommandOption['type']; label: string }[] = [
+  { value: 'input', label: 'Input (text)' },
+  { value: 'list', label: 'List (pick one)' },
+  { value: 'checkbox', label: 'Checkbox (pick several)' },
+  { value: 'confirm', label: 'Confirm (yes / no)' },
+  { value: 'number', label: 'Number' },
+  { value: 'password', label: 'Password' },
+  { value: 'editor', label: 'Editor' },
+];
+
 const OptionForm: React.FC<OptionFormProps> = ({ option, onUpdate, onRemove }) => {
-  const safeOption = option || {
-    type: 'input',
-    name: '',
-    message: ''
-  };
-
-  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onUpdate({ ...safeOption, type: e.target.value as unknown as CommandOption['type'] });
-  };
-
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ ...safeOption, name: e.target.value });
-  };
-
-  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ ...safeOption, message: e.target.value });
-  };
-
-  const handleDefaultChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (safeOption.type === 'confirm') {
-      onUpdate({ ...safeOption, default: e.target.checked });
-    } else {
-      onUpdate({ ...safeOption, default: e.target.value });
-    }
-  };
-
-  const handleValidateChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdate({ ...safeOption, validate: e.target.value });
-  };
-
-  const addChoice = () => {
-    const choices = Array.isArray(safeOption.choices) ? [...safeOption.choices] : [];
-    onUpdate({ ...safeOption, choices });
-  };
-
-  const updateChoice = (index: number, value: string) => {
-    if (!safeOption.choices) return;
-    const updatedChoices = [...safeOption.choices];
-    updatedChoices[index] = value;
-    onUpdate({ ...safeOption, choices: updatedChoices });
-  };
-
-  const removeChoice = (index: number) => {
-    if (!safeOption.choices) return;
-    const updatedChoices = [...safeOption.choices];
-    updatedChoices.splice(index, 1);
-    onUpdate({ ...safeOption, choices: updatedChoices });
-  };
-
-  // Common input styles
-  const inputStyle = {
-    width: '100%',
-    padding: '8px',
-    border: '1px solid #e2e8f0',
-    borderRadius: '4px',
-    fontSize: '14px',
-    marginBottom: '8px',
-  };
-
-  const labelStyle = {
-    display: 'block',
-    marginBottom: '4px',
-    fontWeight: 500,
-    fontSize: '14px',
-  };
+  const id = useId();
+  const hasChoices = option.type === 'list' || option.type === 'checkbox';
+  const set = (patch: Partial<CommandOption>) => onUpdate({ ...option, ...patch });
+  const choices = option.choices ?? [];
 
   return (
-    <div className="option-form">
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Option Type</label>
+    <div className={styles.optionForm}>
+      <div className={styles.row}>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={`${id}-type`}>Type</label>
           <select
-            value={safeOption.type}
-            onChange={handleTypeChange}
-            style={{ ...inputStyle }}
+            id={`${id}-type`}
+            className={styles.select}
+            value={option.type}
+            onChange={(e) => set({ type: e.target.value as CommandOption['type'] })}
           >
-            <option value="input">Input (Text)</option>
-            <option value="list">List (Select)</option>
-            <option value="confirm">Confirm (Yes/No)</option>
-            <option value="password">Password</option>
-            <option value="editor">Editor</option>
-            <option value="checkbox">Checkbox</option>
-            <option value="number">Number</option>
+            {OPTION_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
           </select>
         </div>
 
-        <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Name</label>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={`${id}-name`}>Variable name</label>
           <input
-            type="text"
-            value={safeOption.name}
-            onChange={handleNameChange}
-            placeholder="e.g. fileName"
-            style={inputStyle}
+            id={`${id}-name`}
+            className={styles.input}
+            value={option.name}
+            onChange={(e) => set({ name: e.target.value })}
+            placeholder="fileName"
           />
-          <div style={{ fontSize: '12px', color: '#718096' }}>
-            Variable name used in templates
-          </div>
+          <span className={styles.hint}>Use it in commands as {`{{${option.name || 'name'}}}`}</span>
         </div>
       </div>
 
-      <div style={{ marginBottom: '12px' }}>
-        <label style={labelStyle}>Message</label>
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor={`${id}-message`}>Prompt</label>
         <input
-          type="text"
-          value={safeOption.message}
-          onChange={handleMessageChange}
-          placeholder="Enter prompt message for the user"
-          style={inputStyle}
+          id={`${id}-message`}
+          className={styles.input}
+          value={option.message}
+          onChange={(e) => set({ message: e.target.value })}
+          placeholder="What should the user be asked?"
         />
       </div>
 
-      {safeOption.type !== 'list' && safeOption.type !== 'checkbox' && (
-        <div style={{ marginBottom: '12px' }}>
-          <label style={labelStyle}>Default Value</label>
-          {safeOption.type === 'confirm' ? (
-            <div>
+      {hasChoices ? (
+        <div className={styles.field}>
+          <span className={styles.label}>Choices</span>
+          {choices.map((choice, index) => (
+            <div key={index} className={styles.choice}>
               <input
-                type="checkbox"
-                checked={Boolean(safeOption.default)}
-                onChange={handleDefaultChange}
-                style={{ marginRight: '8px' }}
-              />
-              <span>Default: {Boolean(safeOption.default) ? 'Yes' : 'No'}</span>
-            </div>
-          ) : (
-            <input
-              type="text"
-              value={safeOption.default?.toString() || ''}
-              onChange={handleDefaultChange}
-              placeholder="Default value"
-              style={inputStyle}
-            />
-          )}
-        </div>
-      )}
-
-      {(safeOption.type === 'list' || safeOption.type === 'checkbox') && (
-        <div style={{ marginBottom: '12px' }}>
-          <label style={labelStyle}>Choices</label>
-          {safeOption.choices?.map((choice, index) => (
-            <div key={`choice-${index}`} style={{ display: 'flex', marginBottom: '8px' }}>
-              <input
-                type="text"
+                className={styles.input}
                 value={choice}
-                onChange={(e) => updateChoice(index, e.target.value)}
+                aria-label={`Choice ${index + 1}`}
+                onChange={(e) => set({ choices: choices.map((c, i) => (i === index ? e.target.value : c)) })}
                 placeholder={`Choice ${index + 1}`}
-                style={{ ...inputStyle, marginBottom: 0 }}
               />
               <button
-                onClick={() => removeChoice(index)}
-                style={{
-                  marginLeft: '8px',
-                  background: '#e53e3e',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  width: '32px',
-                  cursor: 'pointer',
-                }}
+                type="button"
+                className={styles.iconButton}
+                aria-label={`Remove choice ${index + 1}`}
+                onClick={() => set({ choices: choices.filter((_, i) => i !== index) })}
               >
                 ×
               </button>
             </div>
           ))}
-          <button
-            onClick={addChoice}
-            style={{
-              background: '#3182ce',
-              color: 'white',
-              border: 'none',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '14px',
-              cursor: 'pointer',
-            }}
-          >
-            Add Choice
+          <button type="button" className={styles.button} onClick={() => set({ choices: [...choices, ''] })}>
+            Add choice
           </button>
+        </div>
+      ) : (
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor={`${id}-default`}>Default value</label>
+          {option.type === 'confirm' ? (
+            <label className={styles.checkRow}>
+              <input
+                id={`${id}-default`}
+                type="checkbox"
+                checked={Boolean(option.default)}
+                onChange={(e) => set({ default: e.target.checked })}
+              />
+              Yes by default
+            </label>
+          ) : (
+            <input
+              id={`${id}-default`}
+              className={styles.input}
+              type={option.type === 'number' ? 'number' : 'text'}
+              value={option.default?.toString() ?? ''}
+              onChange={(e) => set({ default: option.type === 'number' && e.target.value !== '' ? Number(e.target.value) : e.target.value })}
+              placeholder="Optional"
+            />
+          )}
         </div>
       )}
 
-      <div style={{ marginBottom: '12px' }}>
-        <label style={labelStyle}>Validator</label>
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor={`${id}-validate`}>Validator (optional)</label>
         <textarea
-          value={safeOption.validate || ''}
-          onChange={handleValidateChange}
-          placeholder="input => input.trim() !== '' || 'Value is required'"
-          style={{
-            ...inputStyle,
-            fontFamily: 'monospace',
-            minHeight: '60px',
-          }}
+          id={`${id}-validate`}
+          className={styles.textarea}
+          value={option.validate ?? ''}
+          onChange={(e) => set({ validate: e.target.value || undefined })}
+          placeholder="input => input.trim() !== '' || 'A value is required'"
+          spellCheck={false}
         />
-        <div style={{ fontSize: '12px', color: '#718096' }}>
-          JavaScript function to validate input
-        </div>
+        <span className={styles.hint}>A JavaScript function. Return true, or a message to reject the input.</span>
       </div>
 
-      <div>
-        <button
-          onClick={onRemove}
-          style={{
-            background: '#e53e3e',
-            color: 'white',
-            border: 'none',
-            padding: '6px 12px',
-            borderRadius: '4px',
-            fontSize: '14px',
-            cursor: 'pointer',
-          }}
-        >
-          Remove Option
-        </button>
-      </div>
+      <button type="button" className={styles.dangerButton} onClick={onRemove}>Remove option</button>
     </div>
   );
 };
