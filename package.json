@@ -5,11 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "cli": "node CLI/main.ts",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --test \"tests/**/*.test.ts\"",
-    "check": "npm run lint && npm run typecheck && npm test"
+    "check": "npm run lint && npm run typecheck && npm test",
+    "prepare": "npm run build:cli"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -40,5 +43,8 @@
   },
   "engines": {
     "node": ">=22.18"
+  },
+  "bin": {
+    "terminal-commands": "dist/CLI/main.js"
   }
 }

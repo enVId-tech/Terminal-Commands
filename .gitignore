@@ -47,3 +47,5 @@ data
 data/*
 
 temp_*
+# cli build output
+/dist
