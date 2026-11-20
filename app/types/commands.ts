@@ -140,10 +140,6 @@ export interface SubCommand {
 /**
  * Represents the configuration for commands.
  */
-  postExecuteCommands?: string[];
-  postExecuteParallel?: boolean;
-}
-
 export interface CommandConfig {
   /**
    * An array of commands in the configuration.

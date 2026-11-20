@@ -5,7 +5,7 @@ import {Command, CommandOption, SubCommand} from '../types/commands';
 import OptionForm from './OptionForm';
 import SubCommandForm from './SubCommandForm';
 import styles from '../../styles/commandform.module.scss';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 
 interface CommandFormProps {
@@ -118,9 +118,7 @@ const CommandForm: React.FC<CommandFormProps> = (props) => {
     } as EnhancedCommand);
   };
   
-  const handleDragEnd = (result) => {
-    setIsDragging(false);
-
+  const handleDragEnd = (result: DropResult) => {
     const { source, destination, type } = result;
 
     // If dropped outside a droppable area or in same position
