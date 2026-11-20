@@ -15,22 +15,22 @@
     "prepare": "npm run build:cli"
   },
   "dependencies": {
-    "@hello-pangea/dnd": "^18.0.1",
     "handlebars": "^4.7.9",
     "inquirer": "^13.4.3",
-    "js-yaml": "^4.1.1",
-    "next": "^16.4.6",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "sass": "^1.108.2"
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^10.15.0",
     "eslint-config-next": "^16.4.6",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sass": "^1.108.2",
     "typescript": "^6"
   },
   "type": "module",
@@ -46,5 +46,10 @@
   },
   "bin": {
     "terminal-commands": "dist/CLI/main.js"
-  }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
 }
