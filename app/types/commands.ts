@@ -34,108 +34,52 @@ export interface CommandOption {
 }
 
 /**
- * Represents a command in the command configuration.
+ * A node in the command tree. Top-level commands and nested subcommands share
+ * the same shape, so the CLI can execute them with one code path.
  */
-export interface Command {
-  /**
-   * The name of the command.
-   */
+export interface CommandNode {
+  /** The name shown in the menu. */
   name: string;
 
-  /**
-   * A brief description of the command.
-   */
+  /** A brief description of the command. */
   description?: string;
 
-  /**
-   * The options available for the command.
-   */
+  /** Prompts asked before the commands run. Answers are available to templates. */
   options?: CommandOption[];
 
   /**
-   * The command or commands to execute for this command.
-   * Can be a single command as a string or a record of commands.
+   * Legacy single command, or a map from an answer value to the command to run.
+   * Prefer `executeCommands`.
    */
   execute?: string | Record<string, string>;
 
-  /**
-   * An array of commands to execute for this command.
-   */
+  /** Commands (Handlebars templates) to execute. */
   executeCommands?: string[];
 
-  /**
-   * Whether to execute the commands in parallel.
-   */
+  /** Run `executeCommands` in parallel instead of one after another. */
   executeParallel?: boolean;
 
-  /**
-   * The programming language for the command.
-   */
-  language?: string;
-
-  /**
-   * Whether the execution choice is required.
-   */
+  /** Ask the user at runtime whether to run in parallel. */
   requireExecutionChoice?: boolean;
 
-  /**
-   * An array of subcommands for this command.
-   */
-  subcommands?: SubCommand[];
-}
-
-/**
- * Represents a subcommand in the command configuration.
- */
-export interface SubCommand {
-  /**
-   * The name of the subcommand.
-   */
-  name: string;
-
-  /**
-   * A brief description of the subcommand.
-   */
-  description?: string;
-
-  /**
-   * The options available for the subcommand.
-   */
-  options?: CommandOption[];
-
-  /**
-   * The command or commands to execute for this subcommand.
-   * Can be a single command as a string or a record of commands.
-   */
-  execute?: string | Record<string, string>;
-
-  /**
-   * An array of commands to execute for this subcommand.
-   */
-  executeCommands?: string[];
-
-  /**
-   * Whether to execute the commands in parallel.
-   */
-  executeParallel?: boolean;
-  requireExecutionChoice?: boolean;
+  /** Treat the commands as source code of this language instead of shell. */
   language?: string;
 
-  /**
-   * An array of subcommands for this subcommand.
-   */
-  subcommands?: SubCommand[];
+  /** Nested commands the user can pick from. */
+  subcommands?: CommandNode[];
 
-  /**
-   * An array of commands to execute after the main commands.
-   */
+  /** Legacy single command that runs after everything else. */
+  postExecute?: string;
+
+  /** Commands that run after the main commands and subcommands. */
   postExecuteCommands?: string[];
 
-  /**
-   * Whether to execute the post commands in parallel.
-   */
+  /** Run the post commands in parallel. */
   postExecuteParallel?: boolean;
 }
+
+export type Command = CommandNode;
+export type SubCommand = CommandNode;
 
 /**
  * Represents the configuration for commands.
