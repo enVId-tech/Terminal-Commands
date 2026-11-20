@@ -1,62 +1,93 @@
-Welcome to the Terminal Commands Program
-=========================================
-This CLI tool automates command execution through a flexible configuration system. It allows you to:
+# Terminal Commands
 
-- Define command workflows in JSON/YAML configuration files
-- Create hierarchical command structures with subcommands
-- Execute commands sequentially or in parallel
-- Prompt users for inputs with validation
-- Transform user input into command parameters
-- Chain commands with post-execution tasks
-- Dynamically select commands based on user choices
+Design interactive command-line workflows in the browser, then run them in your terminal.
 
-The program offers:  
-- Interactive menu-based command selection
-- Multiple configuration file support
-- Custom validation functions for user input
-- Templated command strings that incorporate user responses
-- Parallel or sequential command execution with user confirmation
-- Comprehensive error handling and command output display
-- Perfect for creating custom dev workflows, automating repetitive tasks, or building
---------------
-Tutorial
-===================
-This tutorial will guide you through the process of creating a simple command workflow using the Terminal Commands Program.
+You describe a workflow once in a JSON or YAML file: prompts, commands, subcommands, follow-up steps. The CLI turns it into a menu, asks for the inputs, fills them into your command templates and runs everything, one after another or in parallel.
 
-Step 1: Install the Program
-----------------------------
-To install the program, first go to the CLI folder on this GitHub and download the `main.ts` folder
+- Visual editor with drag-and-drop ordering, a raw JSON/YAML view and a live outline (light and dark theme)
+- Prompts: text, list, checkbox, confirm, number, password, editor, with optional validators
+- Handlebars templates in commands: `{{name}}`, `{{#if (eq env 'prod')}}…{{/if}}`, `{{quote value}}`
+- Nested subcommands, post-run commands, sequential or parallel execution
+- Commands can also be snippets in JavaScript, TypeScript, C++, C#, Java or Kotlin
+- `--dry-run` shows what would run without running it
 
-Place the `main.ts` file in a directory of your choice. As well, download the `package.json` file and the `tsconfig.json` file in the root directory and place them in the same directory as the `main.ts` file.
+The editor is live at <https://commands.etran.dev>, and your work is saved in the browser.
 
-Open a terminal window in that directory and run the following command to install the necessary dependencies:
+## Quick start
+
+You need [Node.js](https://nodejs.org/) 22.18 or newer.
+
+1. Open the editor, build your workflow and click **Export**. Save the file as `commands.yaml` in the folder you want to run it from (or in a `data/` folder).
+2. Run it:
 
 ```bash
+npx github:enVId-tech/Terminal-Commands
+```
+
+To install it once and use it anywhere:
+
+```bash
+npm install -g github:enVId-tech/Terminal-Commands
+terminal-commands
+```
+
+The CLI looks for `./commands.yaml`, `./commands.yml`, `./commands.json` and everything in `./data`. Point it somewhere else with `--config`:
+
+```bash
+terminal-commands path/to/workflow.yaml
+terminal-commands --config workflow.json --dry-run
+terminal-commands --list
+```
+
+| Option | |
+| --- | --- |
+| `-c, --config <file>` | Configuration to use. Also read from `TERMINAL_COMMANDS_CONFIG`. |
+| `-l, --list` | Print the command tree and exit |
+| `-n, --dry-run` | Print commands without running them |
+| `-h, --help`, `-v, --version` | |
+
+## Example
+
+```yaml
+commands:
+  - name: Build Project
+    options:
+      - type: list
+        name: buildType
+        message: Select build configuration
+        choices: [development, production, staging]
+      - type: confirm
+        name: minify
+        message: Minify the output?
+        default: false
+    executeCommands:
+      - npm run build -- --env={{buildType}} {{#if minify}}--minify{{/if}}
+      - echo Build completed for {{buildType}}
+```
+
+The full format, with every field and more examples, is in the **Documentation** page of the editor.
+
+## Develop
+
+```bash
+git clone https://github.com/enVId-tech/Terminal-Commands.git
+cd Terminal-Commands
 npm install
+npm run dev        # editor at http://localhost:3000
+npm run cli        # run the CLI straight from source
+npm run check      # lint, typecheck and tests
 ```
 
-NOTE: Make sure you have LATEST Node.js installed on your machine before running the above command. If you don't have Node.js installed, you can download it from the official website: https://nodejs.org/
+| Script | |
+| --- | --- |
+| `npm run dev` / `build` / `start` | The editor (Next.js) |
+| `npm run build:cli` | Compile the CLI to `dist/` (runs on install) |
+| `npm test` | Unit tests, using Node's built-in test runner |
 
-Step 2: Configuration file creation
------------------------------------
-Inside of main.ts, make sure to change the ``dataDirPath`` variable to the path of the configuration file you want to use (..data is the default).
+## Security note
 
-Go to the website https://commands.etran.dev/ and create a configuration file.
+Configuration files are trusted: commands run in your shell, and validators are evaluated as JavaScript. Only run configurations you wrote or have read. Values typed into prompts are substituted as is, so use `{{quote name}}` when a value must stay a single shell argument.
 
-Hint: It is recommended to read the documentation on the website beforehand AND use the YAML format for the configuration file.
+## License
 
------
-After you create the configuration file, download it using the `Export Configuration` button and place it in the same directory as the 'main.ts' file.
-
-Step 3: Run the Program
------------------------
-
-To run the program, open a terminal window in the directory where the `main.ts` file is located and run the following command:
-
-```bash
-node ./main.ts
-```
-
-The program will start, and you will see the interactive menu with the command you created. Select the command, and follow the prompts to see the output.
-
-Congratulations! You have successfully created and executed a simple command workflow using the Terminal Commands Program. You can now explore more advanced features and create complex workflows to automate your tasks.
+[MIT](LICENSE)
