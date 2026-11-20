@@ -1,22 +1,27 @@
-// app/layout.tsx
-import { Inter } from 'next/font/google';
-import {NextFont} from "next/dist/compiled/@next/font";
+import type { Metadata, Viewport } from 'next';
+import type { ReactNode } from 'react';
+import './globals.scss';
 
-const inter: NextFont = Inter({ subsets: ['latin'] });
-
-export const metadata = {
-  title: 'CLI Command Builder',
-  description: 'Build interactive command-line tools with JSON configuration',
+export const metadata: Metadata = {
+  title: {
+    default: 'Terminal Commands',
+    template: '%s · Terminal Commands',
+  },
+  description: 'Design interactive command-line workflows in the browser and run them with one command.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport: Viewport = {
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f6f7f9' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e1116' },
+  ],
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body>
         <main>{children}</main>
       </body>
     </html>

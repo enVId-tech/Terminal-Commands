@@ -1,27 +1,27 @@
 // styles/documentation.module.scss
+// Colors come from the global theme (app/globals.scss) so the docs follow light and dark mode.
 
-// Modern color palette
-$primary: #5065da;
-$primary-light: #6e80e3;
-$primary-dark: #3b4db0;
-$secondary: #2c3e50;
-$accent: #00d0b0;
-$text: #333;
-$text-light: #666;
-$bg: #f9fafb;
-$card-bg: white;
-$border: #e8edf2;
-$danger: #ff4d6d;
-$success: #4caf50;
-$warning: #ff9800;
-$info: #0ea5e9;
-$code-bg: #1a202c;
-$code-color: #e2e8f0;
-$gray-100: #f8fafc;
-$gray-200: #edf2f7;
-$gray-300: #e2e8f0;
-$gray-400: #cbd5e1;
-$gray-500: #a0aec0;
+$primary: var(--accent);
+$primary-light: var(--accent-hover);
+$primary-dark: var(--accent-hover);
+$secondary: var(--text);
+$accent: var(--accent);
+$text: var(--text);
+$text-light: var(--text-muted);
+$bg: var(--bg);
+$card-bg: var(--surface);
+$border: var(--border);
+$danger: var(--danger);
+$success: var(--success);
+$warning: var(--warning);
+$info: var(--accent);
+$code-bg: var(--code-bg);
+$code-color: var(--code-text);
+$gray-100: var(--surface-2);
+$gray-200: var(--surface-2);
+$gray-300: var(--border);
+$gray-400: var(--border);
+$gray-500: var(--text-muted);
 
 // Core variables
 $border-radius: 8px;
@@ -117,7 +117,7 @@ $space-xxl: 48px;
 }
 
 .backButton {
-  @include button($primary, white);
+  @include button($primary, var(--accent-contrast));
   display: inline-flex;
   align-items: center;
   text-decoration: none;
@@ -161,7 +161,7 @@ $space-xxl: 48px;
 
   &.activeTab {
     background-color: $primary;
-    color: white;
+    color: var(--accent-contrast);
   }
 }
 
@@ -467,7 +467,7 @@ $space-xxl: 48px;
   .documentationContainer {
     max-width: 100%;
     padding: 0;
-    background: white;
+    background: var(--surface);
   }
 
   .backButton,
@@ -659,7 +659,7 @@ $space-xxl: 48px;
       width: 24px;
       height: 24px;
       background-color: $primary;
-      color: white;
+      color: var(--accent-contrast);
       border-radius: 50%;
       font-size: 0.8rem;
       font-weight: bold;
@@ -717,7 +717,7 @@ $space-xxl: 48px;
 
   &:hover {
     //color: #566d8f;
-    color: white;
+    color: var(--accent-contrast);
     background-color: rgba(0, 104, 208, 0.8);
   }
 
@@ -853,7 +853,7 @@ $space-xxl: 48px;
       left: 0;
       top: -2px;
       background-color: #3182ce;
-      color: white;
+      color: var(--accent-contrast);
       width: 24px;
       height: 24px;
       border-radius: 12px;
