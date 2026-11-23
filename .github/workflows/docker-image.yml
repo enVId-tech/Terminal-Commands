@@ -6,14 +6,17 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+permissions:
+  contents: read
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    # Skip Docker push for Dependabot PRs (they don't have access to secrets)
-    if: github.actor != 'dependabot[bot]'
+    # Only authenticate and push on merged/pushed default-branch commits, never on PRs.
+    if: github.event_name == 'push' && github.actor != 'dependabot[bot]'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -27,13 +30,13 @@ jobs:
       - name: Push to Docker Hub
         run: docker push envidtech/terminal-commands:latest
 
-  # Separate job for Dependabot PRs - build only (no push)
+  # Build-only verification for pull requests and Dependabot runs (no secrets or push)
   build-only:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    if: github.event_name == 'pull_request' || github.actor == 'dependabot[bot]'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build the Docker image (test only)
         run: docker build . --file Dockerfile --tag envidtech/terminal-commands:test
