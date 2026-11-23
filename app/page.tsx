@@ -12,6 +12,8 @@ import { useDraft } from './lib/use-draft';
 import type { Command, CommandConfig } from './types/commands';
 import styles from '../styles/home.module.scss';
 
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+
 type Notice = { kind: 'success' | 'error'; text: string };
 type View = 'visual' | 'raw';
 
@@ -50,7 +52,7 @@ export default function Home() {
   // After the outline asks for an element, scroll to it and fade the highlight.
   useEffect(() => {
     if (!highlighted) return;
-    document.querySelector(`[data-id="${highlighted}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.querySelector(`[data-id="${CSS.escape(highlighted)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const timer = setTimeout(() => setHighlighted(null), 2500);
     return () => clearTimeout(timer);
   }, [highlighted]);
@@ -77,6 +79,7 @@ export default function Home() {
   const importFile = async (file: File) => {
     const detected = formatFromFilename(file.name);
     if (!detected) return say('error', 'Only .json, .yaml and .yml files can be imported.');
+    if (file.size > MAX_IMPORT_BYTES) return say('error', 'Configuration files must be 5 MB or smaller.');
     try {
       setConfig(parseConfig(await file.text(), detected));
       setFormat(detected);
@@ -267,7 +270,7 @@ export default function Home() {
         <p>
           Your work is saved in this browser. Run it with <code>npx terminal-commands {configFilename(format)}</code>
           {' · '}
-          <a href="https://github.com/enVId-tech/Terminal-Commands">GitHub</a>
+          <a href="https://github.com/enVId-tech/Terminal-Commands" rel="noopener noreferrer">GitHub</a>
         </p>
       </footer>
     </div>
