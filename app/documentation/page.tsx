@@ -1,7 +1,7 @@
 // app/documentation/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import styles from '@/styles/documentation.module.scss';
 import Link from 'next/link';
 
@@ -855,7 +855,7 @@ const navigateToElement = (commandIndex, path = []) => {
                     <div className={styles.systemRequirements}>
                         <h3>System Requirements</h3>
                         <ul>
-                            <li><strong>Node.js:</strong> v23.6.0 or higher</li>
+                            <li><strong>Node.js:</strong> v22.18.0 or higher</li>
                             <li><strong>npm:</strong> v6.0.0 or higher</li>
                             <li><strong>Operating Systems:</strong> Windows, macOS, Linux</li>
                         </ul>
@@ -1081,11 +1081,11 @@ commands:
                     <div className={styles.dataLocationSection}>
                         <h3>Data Location</h3>
                         <p>
-                            Configuration files are stored in the <code>data</code> directory within the CLI tool:
+                            The CLI discovers configuration files automatically in your working directory or its <code>data</code> folder:
                         </p>
                         <ul>
-                            <li><code>CLI/data/*.json</code> - JSON configuration files</li>
-                            <li><code>CLI/data/*.yml</code> or <code>CLI/data/*.yaml</code> - YAML configuration files</li>
+                            <li><code>./commands.json</code>, <code>./commands.yml</code>, or <code>./commands.yaml</code></li>
+                            <li><code>./data/*.json</code>, <code>./data/*.yml</code>, or <code>./data/*.yaml</code></li>
                         </ul>
                     </div>
                 </section>
@@ -1785,7 +1785,7 @@ commands:
                         </p>
                         <ol>
                             <li>Copy the example that most closely matches your needs</li>
-                            <li>Click the "Edit JSON" button in the UI to paste the example</li>
+                            <li>Switch to the "Raw" view in the UI to paste the example</li>
                             <li>Modify the commands, options, and structure to fit your specific requirements</li>
                             <li>Test your configuration with small command changes before making large modifications</li>
                             <li>Save your customized version with a descriptive name</li>
