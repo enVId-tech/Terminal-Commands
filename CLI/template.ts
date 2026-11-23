@@ -1,6 +1,10 @@
+import * as vm from 'node:vm';
 import Handlebars from 'handlebars';
 
 export type Answers = Record<string, unknown>;
+
+const MAX_TEMPLATE_CACHE = 500;
+const VALIDATOR_TIMEOUT_MS = 1000;
 
 const hbs = Handlebars.create();
 
@@ -16,8 +20,9 @@ hbs.registerHelper('quote', (value: unknown) => shellQuote(String(value ?? '')))
 
 /** Quote a value so a shell treats it as a single literal argument. */
 export function shellQuote(value: string, platform: NodeJS.Platform = process.platform): string {
-  if (platform === 'win32') return `"${value.replace(/"/g, '""')}"`;
-  return `'${value.replace(/'/g, `'\\''`)}'`;
+  const clean = value.replace(/\0/g, '');
+  if (platform === 'win32') return `"${clean.replace(/[\r\n]+/g, ' ').replace(/"/g, '""')}"`;
+  return `'${clean.replace(/'/g, `'\\''`)}'`;
 }
 
 const compiled = new Map<string, Handlebars.TemplateDelegate>();
@@ -32,6 +37,7 @@ const compiled = new Map<string, Handlebars.TemplateDelegate>();
 export function render(template: string, answers: Answers = {}): string {
   let fn = compiled.get(template);
   if (!fn) {
+    if (compiled.size >= MAX_TEMPLATE_CACHE) compiled.clear();
     fn = hbs.compile(template, { noEscape: true });
     compiled.set(template, fn);
   }
@@ -40,16 +46,43 @@ export function render(template: string, answers: Answers = {}): string {
 
 export type Validator = (input: unknown, answers: Answers) => boolean | string;
 
+/** Serialize a value into a fresh VM-realm copy so host prototypes never cross into the sandbox. */
+function toVmValue(value: unknown, vmParse: (json: string) => unknown): unknown {
+  if (value === undefined || typeof value === 'boolean' || typeof value === 'string') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  try {
+    return vmParse(JSON.stringify(value));
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Turn a validator written in the config file (`"input => input.length > 0"`)
- * into a function. Config files are trusted input, the same as the commands
- * they contain.
+ * into a function executed inside an isolated VM context without access to Node
+ * globals or host prototypes.
  */
 export function createValidator(source: string): Validator {
-  const fn = new Function('input', 'answers', `"use strict"; return (${source})(input, answers);`) as Validator;
+  // Validate syntax up front so malformed expressions fail early, matching prior behavior.
+  const fnScript = new vm.Script(`"use strict"; (${source})`, { filename: 'validator.js' });
+
   return (input, answers) => {
     try {
-      return fn(input, answers);
+      const ctx = vm.createContext(Object.create(null), {
+        codeGeneration: { strings: false, wasm: false },
+      });
+      const vmParse = vm.runInContext('JSON.parse', ctx, { timeout: VALIDATOR_TIMEOUT_MS }) as (json: string) => unknown;
+      const fn = fnScript.runInContext(ctx, { timeout: VALIDATOR_TIMEOUT_MS });
+      if (typeof fn !== 'function') {
+        return 'Validator failed: Validator must evaluate to a function.';
+      }
+      ctx.__fn = fn;
+      ctx.__input = toVmValue(input, vmParse);
+      ctx.__answers = toVmValue(answers ?? {}, vmParse);
+      const result = vm.runInContext('__fn(__input, __answers)', ctx, { timeout: VALIDATOR_TIMEOUT_MS });
+      return typeof result === 'boolean' || typeof result === 'string'
+        ? result
+        : `Validator failed: Expected boolean or string, got ${typeof result}.`;
     } catch (error) {
       return `Validator failed: ${error instanceof Error ? error.message : String(error)}`;
     }

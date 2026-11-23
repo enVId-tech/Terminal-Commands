@@ -38,3 +38,25 @@ test('discoverConfigFiles finds ./commands.* and everything in ./data', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('parseConfig rejects prototype-pollution keys and malformed options', () => {
+  assert.throws(
+    () => parseConfig('{"commands":[{"name":"x","__proto__":{"polluted":true}}]}', '.json'),
+    ConfigError,
+  );
+  assert.throws(
+    () => parseConfig('{"commands":[{"name":"x","options":[{"type":"input","name":"__proto__","message":"m"}]}]}', '.json'),
+    /reserved option name/,
+  );
+  assert.throws(
+    () => parseConfig('{"commands":[{"name":"x","executeCommands":[123]}]}', '.json'),
+    /list of strings/,
+  );
+});
+
+test('parseConfig rejects excessive YAML aliases', () => {
+  const anchors = Array.from({ length: 60 }, (_, i) => `a${i}: &a${i} "x"`).join('\n  ');
+  const refs = Array.from({ length: 60 }, (_, i) => `*a${i}`).join(', ');
+  const yamlBomb = `defs:\n  ${anchors}\ncommands:\n  - name: test\n    executeCommands: [${refs}]\n`;
+  assert.throws(() => parseConfig(yamlBomb, '.yaml'), ConfigError);
+});

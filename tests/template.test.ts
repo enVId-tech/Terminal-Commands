@@ -22,6 +22,8 @@ test('render returns an empty string when a template renders to nothing', () => 
 test('shellQuote keeps a value as one literal argument', () => {
   assert.equal(shellQuote("it's", 'linux'), `'it'\\''s'`);
   assert.equal(shellQuote('a "b"', 'win32'), '"a ""b"""');
+  assert.equal(shellQuote('a\0b\nc', 'win32'), '"ab c"');
+  assert.equal(shellQuote('a\0b', 'linux'), `'ab'`);
   assert.equal(render('echo {{quote name}}', { name: '$(rm -rf ~)' }), process.platform === 'win32' ? 'echo "$(rm -rf ~)"' : "echo '$(rm -rf ~)'");
 });
 
@@ -34,4 +36,15 @@ test('createValidator evaluates validators written in the config', () => {
 test('createValidator reports errors thrown by the validator instead of crashing', () => {
   const validate = createValidator('input => input.nope.deep');
   assert.match(String(validate('x', {})), /Validator failed/);
+});
+
+test('createValidator isolates execution from Node globals and blocks eval/infinite loops', () => {
+  const probeProcess = createValidator("() => typeof process === 'undefined' || 'leaked'");
+  assert.equal(probeProcess('x', {}), true);
+
+  const escapeAttempt = createValidator("(_i, a) => { const f = a.constructor.constructor('return process'); return typeof f() === 'undefined'; }");
+  assert.match(String(escapeAttempt('x', {})), /Validator failed/);
+
+  const infiniteLoop = createValidator('() => { while (true) {} }');
+  assert.match(String(infiniteLoop('x', {})), /Validator failed/);
 });

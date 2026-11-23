@@ -1,9 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import yaml from 'js-yaml';
-import type { CommandConfig, CommandNode } from '../app/types/commands.ts';
+import { load as loadYaml } from 'js-yaml';
+import type { CommandConfig } from '../app/types/commands.ts';
+import { validateCommandConfig } from '../app/lib/validate-config.ts';
 
 const CONFIG_EXTENSIONS = new Set(['.json', '.yml', '.yaml']);
+const YAML_LOAD_OPTIONS = { maxAliases: 50, maxDepth: 64 } as const;
 
 export class ConfigError extends Error {}
 
@@ -12,7 +14,7 @@ export function parseConfig(text: string, extension: string): CommandConfig {
   let data: unknown;
   try {
     if (ext === '.json') data = JSON.parse(text);
-    else if (ext === '.yml' || ext === '.yaml') data = yaml.load(text);
+    else if (ext === '.yml' || ext === '.yaml') data = loadYaml(text, YAML_LOAD_OPTIONS);
     else throw new ConfigError(`Unsupported file type "${extension}". Use .json, .yml or .yaml.`);
   } catch (error) {
     if (error instanceof ConfigError) throw error;
@@ -31,29 +33,8 @@ export function loadConfig(file: string): CommandConfig {
   return parseConfig(text, path.extname(file));
 }
 
-function validateNode(node: unknown, where: string): asserts node is CommandNode {
-  if (!node || typeof node !== 'object') throw new ConfigError(`${where} must be an object.`);
-  const { name, subcommands, executeCommands, options } = node as CommandNode;
-  if (typeof name !== 'string' || !name.trim()) throw new ConfigError(`${where} needs a "name".`);
-  if (executeCommands !== undefined && !Array.isArray(executeCommands)) {
-    throw new ConfigError(`${where} ("${name}"): "executeCommands" must be a list.`);
-  }
-  if (options !== undefined && !Array.isArray(options)) {
-    throw new ConfigError(`${where} ("${name}"): "options" must be a list.`);
-  }
-  if (subcommands !== undefined) {
-    if (!Array.isArray(subcommands)) throw new ConfigError(`${where} ("${name}"): "subcommands" must be a list.`);
-    subcommands.forEach((sub, i) => validateNode(sub, `${where} > subcommand #${i + 1}`));
-  }
-}
-
 export function validateConfig(data: unknown): CommandConfig {
-  if (!data || typeof data !== 'object' || !Array.isArray((data as CommandConfig).commands)) {
-    throw new ConfigError('The configuration needs a top-level "commands" list.');
-  }
-  const config = data as CommandConfig;
-  config.commands.forEach((cmd, i) => validateNode(cmd, `Command #${i + 1}`));
-  return config;
+  return validateCommandConfig(data, { allowEmptyNames: false }, (msg) => new ConfigError(msg));
 }
 
 /** Config files that sit next to the user: `./commands.*` and everything in `./data`. */

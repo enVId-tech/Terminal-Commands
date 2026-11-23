@@ -32,6 +32,22 @@ test('collectCommands maps the first option answer to a command', () => {
   assert.deepEqual(collectCommands(node, { op: 'seed' }), ['run seed']);
 });
 
+test('collectCommands ignores Object.prototype keys in execute map', () => {
+  const node = {
+    name: 'db',
+    options: [{ type: 'input' as const, name: 'op', message: 'op?' }],
+    execute: { migrate: 'run migrate' },
+  };
+  const original = console.error;
+  console.error = () => {};
+  try {
+    assert.deepEqual(collectCommands(node, { op: 'toString' }), []);
+    assert.deepEqual(collectCommands(node, { op: 'constructor' }), []);
+  } finally {
+    console.error = original;
+  }
+});
+
 test('runShell returns the exit code of the command', async () => {
   await captureStdout(async () => {
     assert.equal(await runShell('node -e "process.exit(0)"', real), 0);

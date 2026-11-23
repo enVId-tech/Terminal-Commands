@@ -43,8 +43,8 @@ export function collectCommands(node: CommandNode, answers: Answers): string[] {
     // A map from the first answer's value to the command to run.
     const key = node.options?.[0]?.name ?? Object.keys(answers)[0];
     const chosen = String(answers[key]);
-    const command = node.execute[chosen];
-    if (command) return [command];
+    const command = Object.hasOwn(node.execute, chosen) ? node.execute[chosen] : undefined;
+    if (typeof command === 'string' && command) return [command];
     console.error(`No command defined for "${chosen}".`);
   }
   return [];
@@ -62,7 +62,7 @@ async function execute(node: CommandNode, commands: string[], parallel: boolean,
 
 /** Run a command or subcommand: prompt, execute, descend into subcommands, then run the post commands. */
 export async function executeNode(node: CommandNode, inherited: Answers, ctx: RunContext): Promise<void> {
-  const answers: Answers = { ...inherited, ...(await ask(node.options, inherited)) };
+  const answers: Answers = Object.assign(Object.create(null) as Answers, inherited, await ask(node.options, inherited));
 
   const commands = collectCommands(node, answers);
   if (commands.length > 0) {

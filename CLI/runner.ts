@@ -13,14 +13,13 @@ let activeChildren = 0;
 /** True while a child process owns the terminal and handles Ctrl+C itself. */
 export const hasActiveChild = (): boolean => activeChildren > 0;
 
-/** Run one shell command with the terminal attached. Resolves with its exit code. */
-export function runShell(command: string, ctx: RunContext, cwd?: string): Promise<number> {
-  console.log(`$ ${command}`);
-  if (ctx.dryRun) return Promise.resolve(0);
-
+function spawnTracked(
+  cmd: string,
+  args: string[] | undefined,
+  options: { shell: boolean; cwd?: string },
+): Promise<number> {
   return new Promise((resolve) => {
-    // `shell: true` uses cmd.exe on Windows and /bin/sh elsewhere.
-    const child = spawn(command, { shell: true, stdio: 'inherit', cwd });
+    const child = args ? spawn(cmd, args, { ...options, stdio: 'inherit' }) : spawn(cmd, { ...options, stdio: 'inherit' });
     activeChildren++;
     let settled = false;
     const finish = (code: number) => {
@@ -41,6 +40,22 @@ export function runShell(command: string, ctx: RunContext, cwd?: string): Promis
   });
 }
 
+/** Run one shell command with the terminal attached. Resolves with its exit code. */
+export function runShell(command: string, ctx: RunContext, cwd?: string): Promise<number> {
+  console.log(`$ ${command}`);
+  if (ctx.dryRun) return Promise.resolve(0);
+
+  // `shell: true` uses cmd.exe on Windows and /bin/sh elsewhere.
+  return spawnTracked(command, undefined, { shell: true, cwd });
+}
+
+/** Run an executable directly without a shell so file paths cannot inject shell syntax. */
+function runProcess(cmd: string, args: string[], ctx: RunContext, displayCmd = cmd): Promise<number> {
+  console.log(`$ ${[displayCmd, ...args].join(' ')}`);
+  if (ctx.dryRun) return Promise.resolve(0);
+  return spawnTracked(cmd, args, { shell: false });
+}
+
 /** Run shell commands one after another, or all at once. */
 export async function runShellCommands(commands: string[], parallel: boolean, ctx: RunContext): Promise<void> {
   if (parallel) {
@@ -50,28 +65,57 @@ export async function runShellCommands(commands: string[], parallel: boolean, ct
   }
 }
 
-interface LanguageSpec {
-  file: (dir: string, source: string) => string;
-  command: (file: string, dir: string) => string;
+interface ProcessStep {
+  cmd: string;
+  args: string[];
+  display?: string;
 }
 
-const q = (value: string) => `"${value}"`;
+interface LanguageSpec {
+  file: (dir: string, source: string) => string;
+  steps: (file: string, dir: string) => ProcessStep[];
+}
+
 const exe = (file: string) => file.replace(/\.[^./\\]+$/, process.platform === 'win32' ? '.exe' : '');
 
 const LANGUAGES: Record<string, LanguageSpec> = {
-  javascript: { file: (d) => path.join(d, 'script.js'), command: (f) => `node ${q(f)}` },
+  javascript: {
+    file: (d) => path.join(d, 'script.js'),
+    steps: (f) => [{ cmd: process.execPath, args: [f], display: 'node' }],
+  },
   // Node 22.18+ strips types natively, so TypeScript needs no extra tooling.
-  typescript: { file: (d) => path.join(d, 'script.ts'), command: (f) => `node ${q(f)}` },
-  cpp: { file: (d) => path.join(d, 'main.cpp'), command: (f) => `g++ ${q(f)} -o ${q(exe(f))} && ${q(exe(f))}` },
-  csharp: { file: (d) => path.join(d, 'script.csx'), command: (f) => `dotnet script ${q(f)}` },
+  typescript: {
+    file: (d) => path.join(d, 'script.ts'),
+    steps: (f) => [{ cmd: process.execPath, args: [f], display: 'node' }],
+  },
+  cpp: {
+    file: (d) => path.join(d, 'main.cpp'),
+    steps: (f) => [
+      { cmd: 'g++', args: [f, '-o', exe(f)] },
+      { cmd: exe(f), args: [] },
+    ],
+  },
+  csharp: {
+    file: (d) => path.join(d, 'script.csx'),
+    steps: (f) => [{ cmd: 'dotnet', args: ['script', f] }],
+  },
   java: {
     // A public class must live in a file with the same name.
     file: (d, source) => path.join(d, `${source.match(/public\s+class\s+(\w+)/)?.[1] ?? 'Main'}.java`),
-    command: (f, d) => `javac ${q(f)} -d ${q(d)} && java -cp ${q(d)} ${path.basename(f, '.java')}`,
+    steps: (f, d) => [
+      { cmd: 'javac', args: [f, '-d', d] },
+      { cmd: 'java', args: ['-cp', d, path.basename(f, '.java')] },
+    ],
   },
   kotlin: {
     file: (d) => path.join(d, 'script.kt'),
-    command: (f, d) => `kotlinc ${q(f)} -include-runtime -d ${q(path.join(d, 'script.jar'))} && java -jar ${q(path.join(d, 'script.jar'))}`,
+    steps: (f, d) => {
+      const jar = path.join(d, 'script.jar');
+      return [
+        { cmd: 'kotlinc', args: [f, '-include-runtime', '-d', jar] },
+        { cmd: 'java', args: ['-jar', jar] },
+      ];
+    },
   },
 };
 
@@ -91,8 +135,11 @@ export async function runSource(source: string, language: string, ctx: RunContex
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'terminal-commands-'));
   try {
     const file = spec.file(dir, source);
-    await fs.writeFile(file, source);
-    await runShell(spec.command(file, dir), ctx);
+    await fs.writeFile(file, source, { mode: 0o600 });
+    for (const step of spec.steps(file, dir)) {
+      const code = await runProcess(step.cmd, step.args, ctx, step.display);
+      if (code !== 0) break;
+    }
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }

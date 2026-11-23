@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import * as path from 'node:path';
-import inquirer from 'inquirer';
 import pkg from '../package.json' with { type: 'json' };
 import type { CommandNode } from '../app/types/commands.ts';
 import { ConfigError, discoverConfigFiles, loadConfig } from './config.ts';
@@ -40,9 +39,10 @@ async function pickConfigFile(explicit?: string): Promise<string> {
     throw new ConfigError('No configuration found. Pass one with --config, or put commands.yaml in this folder or in ./data.');
   }
   if (files.length === 1) return files[0];
-  const { file } = await inquirer.prompt([
-    { type: 'list', name: 'file', message: 'Select a configuration file:', choices: files.map((f) => path.relative(process.cwd(), f)) },
-  ] as never) as { file: string };
+  const file = await choose(
+    'Select a configuration file:',
+    files.map((f) => path.relative(process.cwd(), f)),
+  );
   return path.resolve(file);
 }
 
