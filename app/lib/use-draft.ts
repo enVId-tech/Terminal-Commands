@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import type { CommandConfig } from '../types/commands';
 import { exampleConfig } from './example';
+import { validateCommandConfig } from './validate-config.ts';
 
 const KEY = 'terminal-commands:draft';
 const listeners = new Set<() => void>();
@@ -35,8 +36,8 @@ export function useDraft(): [CommandConfig, (config: CommandConfig) => void] {
   const config = useMemo<CommandConfig>(() => {
     if (!stored) return exampleConfig;
     try {
-      const parsed = JSON.parse(stored) as CommandConfig;
-      return Array.isArray(parsed.commands) ? parsed : exampleConfig;
+      const parsed: unknown = JSON.parse(stored);
+      return validateCommandConfig(parsed, { allowEmptyNames: true });
     } catch {
       return exampleConfig;
     }

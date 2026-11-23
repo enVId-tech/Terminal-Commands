@@ -22,6 +22,8 @@ test('serializeConfig and parseConfig round-trip in both formats', () => {
 test('parseConfig explains what is wrong', () => {
   assert.throws(() => parseConfig('{"nope":1}', 'json'), /"commands" list/);
   assert.throws(() => parseConfig('commands: [', 'yaml'));
+  assert.throws(() => parseConfig('{"commands":[{"name":"ok","subcommands":"bad"}]}', 'json'), /must be a list/);
+  assert.throws(() => parseConfig('{"commands":[{"name":"ok","__proto__":{"admin":true}}]}', 'json'), /must be an object/);
 });
 
 test('the example config is valid and every template renders with sample answers', () => {
