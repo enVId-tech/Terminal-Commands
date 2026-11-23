@@ -30,7 +30,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sass": "^1.108.2",
-    "typescript": "^6"
+    "typescript": "^7"
   },
   "type": "module",
   "description": "Visual builder and interactive runner for command workflows defined in JSON or YAML",
