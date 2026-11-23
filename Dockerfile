@@ -2,7 +2,7 @@
 FROM node:26
 
 # Set the working directory in the container
-WORKDIR /nextapp
+WORKDIR /app
 
 # Install dependencies first so this layer is cached until the lockfile changes
 COPY package.json package-lock.json ./
@@ -10,7 +10,7 @@ RUN npm ci --ignore-scripts
 
 COPY . .
 
-RUN npm run build:cli && npm run build && chown -R node:node /nextapp
+RUN npm run build:cli && npm run build && chown -R node:node /app
 
 # Drop root privileges before running the server
 USER node
