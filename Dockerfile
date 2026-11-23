@@ -10,7 +10,10 @@ RUN npm ci
 
 COPY . .
 
-RUN npm run build
+RUN npm run build && chown -R node:node /nextapp
+
+# Drop root privileges before running the server
+USER node
 
 # Next.js listens on port 3000 inside the container
 EXPOSE 3000

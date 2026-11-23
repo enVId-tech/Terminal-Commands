@@ -3,10 +3,17 @@ node_modules
 .next
 out
 build
+dist
+
+# Repo metadata, CI, editor, and local configs
+.git
+.github
+.idea
+data
 
 # Local environment files and secrets must not be baked into the image
-.env.local
-.env*.local
+.env
+.env.*
 stack.env
 
 # Logs and local artifacts
