@@ -6,11 +6,11 @@ WORKDIR /nextapp
 
 # Install dependencies first so this layer is cached until the lockfile changes
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY . .
 
-RUN npm run build && chown -R node:node /nextapp
+RUN npm run build:cli && npm run build && chown -R node:node /nextapp
 
 # Drop root privileges before running the server
 USER node
