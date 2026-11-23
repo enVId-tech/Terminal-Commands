@@ -1,0 +1,17 @@
+# Dependencies and build output are recreated inside the image
+node_modules
+.next
+out
+build
+
+# Local environment files and secrets must not be baked into the image
+.env.local
+.env*.local
+stack.env
+
+# Logs and local artifacts
+analytics.log
+npm-debug.log*
+*.tsbuildinfo
+.DS_Store
+.vercel
